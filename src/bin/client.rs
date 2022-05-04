@@ -1,5 +1,4 @@
 use cached::Connection;
-use std::time::Duration;
 use tokio::net::TcpStream;
 
 #[tokio::main]
@@ -10,6 +9,5 @@ async fn main() {
         if let Ok(Some(frame)) = connection.read_frame().await {
             println!("Frame: {:?}", frame);
         }
-        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }

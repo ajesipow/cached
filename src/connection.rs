@@ -6,12 +6,12 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 
 pub struct Connection {
-    // TODO use BufWriter?
     read_half: OwnedReadHalf,
     write_half: BufWriter<OwnedWriteHalf>,
     buffer: BytesMut,
 }
 
+#[derive(Debug)]
 pub enum ConnectionError {
     Read(String),
     Parse,
@@ -53,12 +53,10 @@ impl Connection {
     pub fn parse_frame(&mut self) -> Result<Option<Frame>, ConnectionError> {
         let mut buf = Cursor::new(&self.buffer[..]);
         match Frame::check(&mut buf) {
-            Ok(_) => {
-                let len = buf.position() as usize;
+            Ok(frame_length) => {
                 buf.set_position(0);
                 let frame = Frame::parse(&mut buf).map_err(|_| ConnectionError::Parse)?;
-                self.buffer.advance(len);
-
+                self.buffer.advance(frame_length);
                 Ok(Some(frame))
             }
             Err(Error::Incomplete) => Ok(None),

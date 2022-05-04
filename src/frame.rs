@@ -15,6 +15,7 @@
 use bytes::Buf;
 use std::io::Cursor;
 
+#[derive(Debug)]
 pub enum Error {
     Incomplete,
     InvalidOpCode,
@@ -49,13 +50,13 @@ impl Frame {
         }
     }
 
-    pub fn check(src: &mut Cursor<&[u8]>) -> Result<(), Error> {
+    pub fn check(src: &mut Cursor<&[u8]>) -> Result<usize, Error> {
         let header = Header::try_from(src.take(HEADER_SIZE_BYTES as usize).into_inner())?;
         let payload_length = header.total_frame_length - HEADER_SIZE_BYTES as u32;
         if src.remaining() < payload_length as usize {
             return Err(Error::Incomplete);
         }
-        Ok(())
+        Ok(header.total_frame_length as usize)
     }
 
     pub fn parse(src: &mut Cursor<&[u8]>) -> Result<Self, Error> {
