@@ -2,12 +2,10 @@ use crate::frame::{Error, Frame};
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 
 pub struct Connection {
-    read_half: OwnedReadHalf,
-    write_half: BufWriter<OwnedWriteHalf>,
+    stream: BufWriter<TcpStream>,
     buffer: BytesMut,
 }
 
@@ -21,10 +19,8 @@ pub enum ConnectionError {
 
 impl Connection {
     pub fn new(socket: TcpStream) -> Self {
-        let (read_half, write_half) = socket.into_split();
         Self {
-            read_half,
-            write_half: BufWriter::new(write_half),
+            stream: BufWriter::new(socket),
             buffer: BytesMut::with_capacity(8 * 1024),
         }
     }
@@ -36,7 +32,7 @@ impl Connection {
             }
 
             if 0 == self
-                .read_half
+                .stream
                 .read_buf(&mut self.buffer)
                 .await
                 .map_err(|e| ConnectionError::Read(e.to_string()))?
@@ -65,19 +61,19 @@ impl Connection {
     }
 
     pub async fn write_frame(&mut self, frame: &Frame) -> Result<(), std::io::Error> {
-        self.write_half.write_u8(frame.header.op_code as u8).await?;
-        self.write_half.write_u8(frame.header.key_length).await?;
-        self.write_half
+        self.stream.write_u8(frame.header.op_code as u8).await?;
+        self.stream.write_u8(frame.header.key_length).await?;
+        self.stream
             .write_u32(frame.header.total_frame_length)
             .await?;
         if let Some(key) = frame.key.as_ref() {
-            self.write_half.write_all(key.as_bytes()).await?;
+            self.stream.write_all(key.as_bytes()).await?;
         }
         if let Some(value) = frame.value.as_ref() {
-            self.write_half.write_all(value.as_bytes()).await?;
+            self.stream.write_all(value.as_bytes()).await?;
         }
 
-        self.write_half.flush().await?;
+        self.stream.flush().await?;
         Ok(())
     }
 }
