@@ -16,6 +16,7 @@ use bytes::Buf;
 use std::io::Cursor;
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum Error {
     Incomplete,
     InvalidOpCode,
@@ -112,6 +113,7 @@ impl TryFrom<&mut Cursor<&[u8]>> for Header {
 }
 
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 #[repr(u8)]
 pub enum OpCode {
     Set = 1,
@@ -123,7 +125,6 @@ pub enum OpCode {
 impl TryFrom<u8> for OpCode {
     type Error = Error;
 
-    // TODO: make tests
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(OpCode::Set),
@@ -142,4 +143,38 @@ pub enum Status {
     KeyNotFound = 2,
     KeyExists = 3,
     InternalError = 4,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use rstest::rstest;
+
+    #[test]
+    fn test_op_code_serialisation() {
+        assert_eq!(OpCode::Set as u8, 1);
+        assert_eq!(OpCode::Get as u8, 2);
+        assert_eq!(OpCode::Delete as u8, 3);
+        assert_eq!(OpCode::Flush as u8, 4);
+    }
+
+    #[test]
+    fn test_op_code_deserialisation_works() {
+        assert_eq!(OpCode::try_from(1), Ok(OpCode::Set));
+        assert_eq!(OpCode::try_from(2), Ok(OpCode::Get));
+        assert_eq!(OpCode::try_from(3), Ok(OpCode::Delete));
+        assert_eq!(OpCode::try_from(4), Ok(OpCode::Flush));
+    }
+
+    #[rstest]
+    #[case(0)]
+    #[case(5)]
+    #[case(6)]
+    #[case(7)]
+    #[case(8)]
+    #[case(9)]
+    #[case(10)]
+    fn test_op_code_deserialisation_fails_for_wrong_codes(#[case] input: u8) {
+        assert!(OpCode::try_from(input).is_err());
+    }
 }
