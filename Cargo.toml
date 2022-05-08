@@ -1,7 +1,19 @@
 [package]
 name = "cached"
 version = "0.1.0"
+authors = ["Alexander Jesipow"]
 edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/bin/server.rs"
+name = "server"
+
+[[bin]]
+path = "src/bin/client.rs"
+name = "client"
 
 [dependencies]
 tokio = { version = "1.17.0", features=["full"] }
