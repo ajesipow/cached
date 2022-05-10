@@ -25,6 +25,7 @@ pub enum Error {
 static HEADER_SIZE_BYTES: u8 = 6;
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Frame {
     pub header: Header,
     pub key: Option<String>,
@@ -87,6 +88,7 @@ fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String, Error> {
 }
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Header {
     pub op_code: OpCode,
     pub key_length: u8,
