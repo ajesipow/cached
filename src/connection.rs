@@ -82,11 +82,15 @@ impl Connection {
 #[cfg(test)]
 mod test {
     use crate::{Connection, Frame, OpCode};
+    use std::time::Duration;
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
+    use tokio::time::timeout;
 
     #[tokio::test]
     async fn test_client_server_ping_pong() {
+        let timeout_duration = Duration::from_millis(100);
+
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let socket_address = listener.local_addr().unwrap();
         tokio::spawn(async move {
@@ -95,16 +99,17 @@ mod test {
                 tokio::spawn(async move {
                     let mut connection = Connection::new(stream);
                     if let Ok(Some(frame)) = connection.read_frame().await {
-                        connection.write_frame(&frame).await.unwrap();
+                        timeout(timeout_duration, connection.write_frame(&frame))
+                            .await
+                            .unwrap()
+                            .unwrap();
                     }
                     Ok::<_, io::Error>(())
                 });
             }
         });
 
-        let stream = TcpStream::connect(socket_address.to_string())
-            .await
-            .unwrap();
+        let stream = TcpStream::connect(socket_address).await.unwrap();
         let mut connection = Connection::new(stream);
 
         let frame = Frame::new(
@@ -113,8 +118,13 @@ mod test {
             Some("mega guter value".to_string()),
         );
 
-        connection.write_frame(&frame).await.unwrap();
-        let returned_frame = connection.read_frame().await;
+        timeout(timeout_duration, connection.write_frame(&frame))
+            .await
+            .unwrap()
+            .unwrap();
+        let returned_frame = timeout(timeout_duration, connection.read_frame())
+            .await
+            .unwrap();
         assert_eq!(returned_frame, Ok(Some(frame)))
     }
 }
