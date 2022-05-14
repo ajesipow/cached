@@ -3,16 +3,26 @@ use std::time::Duration;
 use tokio::io;
 use tokio::net::{TcpListener, ToSocketAddrs};
 
-pub struct Server;
+#[derive(Debug)]
+pub struct Server(InnerServer);
+
+#[derive(Debug)]
+struct InnerServer {
+    listener: TcpListener,
+}
 
 impl Server {
-    pub async fn run<A>(addr: A) -> Result<(), io::Error>
+    pub async fn try_bind<A>(addr: A) -> Result<Server, io::Error>
     where
         A: ToSocketAddrs,
     {
         let listener = TcpListener::bind(addr).await?;
+        Ok(Self(InnerServer { listener }))
+    }
+
+    pub async fn serve(self) -> Result<(), io::Error> {
         loop {
-            let (stream, addr) = listener.accept().await.unwrap();
+            let (stream, addr) = self.0.listener.accept().await.unwrap();
             tokio::spawn(async move {
                 let frame = Frame::new(
                     OpCode::Set,
