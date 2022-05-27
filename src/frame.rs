@@ -1,70 +1,67 @@
 #![allow(dead_code)]
 // SET
 // - Req: K, V
-// - Resp: K, V
+// - Resp: V
 // GET
 // - Req: K
-// - Resp: K, V
+// - Resp: V
 // DELETE
 // - Req: K
-// - Resp: K, V
+// - Resp: V
 // FLUSH
 // - Req: na
 // - Resp: count
 
-use bytes::Buf;
+use bytes::{Buf, Bytes};
+use std::fmt::Debug;
 use std::io::Cursor;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
-pub enum Error {
+pub enum FrameError {
     Incomplete,
     InvalidOpCode,
+    InvalidStatusCode,
 }
 
-static HEADER_SIZE_BYTES: u8 = 6;
+static HEADER_SIZE_BYTES: u8 = 7;
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct Frame {
-    pub header: Header,
-    pub key: Option<String>,
-    pub value: Option<String>,
+pub trait Header {
+    fn get_op_code(&self) -> OpCode;
+    fn get_key_length(&self) -> u8;
+    fn get_status_or_blank(&self) -> u8;
+    fn get_total_frame_length(&self) -> u32;
 }
 
-impl Frame {
-    pub fn new(op_code: OpCode, key: Option<String>, value: Option<String>) -> Self {
-        // TODO string must not be longer than what the u8 can hold
-        let key_length = key.as_ref().map_or(0, |s| s.len());
-        // TODO string must not be longer than what the u32 can hold
-        let total_frame_length = HEADER_SIZE_BYTES as u32
-            + key_length as u32
-            + value.as_ref().map_or(0, |s| s.len() as u32);
+pub trait Frame {
+    type Header: Header + TryFrom<Bytes, Error = FrameError> + Debug;
 
-        Self {
-            header: Header {
-                op_code,
-                key_length: key_length as u8,
-                total_frame_length,
-            },
-            key,
-            value,
+    fn new(header: Self::Header, key: Option<String>, value: Option<String>) -> Self;
+    fn get_header(&self) -> &Self::Header;
+    fn get_key(&self) -> Option<&str>;
+    fn get_value(&self) -> Option<&str>;
+
+    fn check(src: &mut Cursor<&[u8]>) -> Result<usize, FrameError> {
+        if src.remaining() < HEADER_SIZE_BYTES as usize {
+            return Err(FrameError::Incomplete);
         }
+        let header = Self::Header::try_from(src.copy_to_bytes(HEADER_SIZE_BYTES as usize))?;
+
+        if src.remaining() < header.get_total_frame_length() as usize - HEADER_SIZE_BYTES as usize {
+            return Err(FrameError::Incomplete);
+        }
+        Ok(header.get_total_frame_length() as usize)
     }
 
-    pub fn check(src: &mut Cursor<&[u8]>) -> Result<usize, Error> {
-        let header = Header::try_from(src.take(HEADER_SIZE_BYTES as usize).into_inner())?;
-        let payload_length = header.total_frame_length - HEADER_SIZE_BYTES as u32;
-        if src.remaining() < payload_length as usize {
-            return Err(Error::Incomplete);
-        }
-        Ok(header.total_frame_length as usize)
-    }
-
-    pub fn parse(src: &mut Cursor<&[u8]>) -> Result<Self, Error> {
-        let header = Header::try_from(src.take(HEADER_SIZE_BYTES as usize).into_inner())?;
-        let key_length = header.key_length;
-        let value_length = header.total_frame_length - HEADER_SIZE_BYTES as u32 - key_length as u32;
+    fn parse(src: &mut Cursor<&[u8]>) -> Result<Self, FrameError>
+    where
+        Self: Sized,
+    {
+        let header = Self::Header::try_from(src.copy_to_bytes(HEADER_SIZE_BYTES as usize))?;
+        // src.advance(HEADER_SIZE_BYTES as usize);
+        let key_length = header.get_key_length();
+        let value_length =
+            header.get_total_frame_length() - HEADER_SIZE_BYTES as u32 - key_length as u32;
         let key = match key_length {
             0 => None,
             key_length => Some(get_string(src, key_length as u32)?),
@@ -73,13 +70,67 @@ impl Frame {
             0 => None,
             value_length => Some(get_string(src, value_length)?),
         };
-        Ok(Self { header, key, value })
+        Ok(Self::new(header, key, value))
     }
 }
 
-fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String, Error> {
+#[derive(Debug)]
+pub struct ResponseFrame {
+    pub header: ResponseHeader,
+    pub key: Option<String>,
+    pub value: Option<String>,
+}
+
+impl Frame for ResponseFrame {
+    type Header = ResponseHeader;
+
+    fn new(header: Self::Header, key: Option<String>, value: Option<String>) -> Self {
+        Self { header, key, value }
+    }
+
+    fn get_header(&self) -> &Self::Header {
+        &self.header
+    }
+
+    fn get_key(&self) -> Option<&str> {
+        self.key.as_deref()
+    }
+
+    fn get_value(&self) -> Option<&str> {
+        self.value.as_deref()
+    }
+}
+
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
+pub struct RequestFrame {
+    pub header: RequestHeader,
+    pub key: Option<String>,
+    pub value: Option<String>,
+}
+
+impl Frame for RequestFrame {
+    type Header = RequestHeader;
+
+    fn new(header: Self::Header, key: Option<String>, value: Option<String>) -> Self {
+        Self { header, key, value }
+    }
+    fn get_header(&self) -> &Self::Header {
+        &self.header
+    }
+
+    fn get_key(&self) -> Option<&str> {
+        self.key.as_deref()
+    }
+
+    fn get_value(&self) -> Option<&str> {
+        self.value.as_deref()
+    }
+}
+
+fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String, FrameError> {
     if src.remaining() < len as usize {
-        return Err(Error::Incomplete);
+        return Err(FrameError::Incomplete);
     }
     let value = String::from_utf8_lossy(src.take(len as usize).chunk()).to_string();
     let new_position = src.position() + len as u64;
@@ -87,30 +138,152 @@ fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String, Error> {
     Ok(value)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
-pub struct Header {
+pub struct RequestHeader {
     pub op_code: OpCode,
+    /// Can be ignored
+    pub blank: u8,
     pub key_length: u8,
     pub total_frame_length: u32,
 }
 
-impl TryFrom<&mut Cursor<&[u8]>> for Header {
-    type Error = Error;
+impl RequestHeader {
+    pub fn new(op_code: OpCode, key: Option<&str>, value: Option<&str>) -> Self {
+        let value_length = value.map_or(0, |s| s.len() as u32);
+        let key_length = key.map_or(0, |s| s.len() as u8);
+        Self {
+            op_code,
+            blank: 0,
+            // TODO key must not be longer than u8
+            key_length,
+            // TODO value must not be longer than u32
+            total_frame_length: HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length,
+        }
+    }
+}
 
-    fn try_from(value: &mut Cursor<&[u8]>) -> Result<Self, Self::Error> {
+impl Header for RequestHeader {
+    fn get_total_frame_length(&self) -> u32 {
+        self.total_frame_length
+    }
+
+    // TODO rename
+    fn get_status_or_blank(&self) -> u8 {
+        self.blank
+    }
+
+    fn get_key_length(&self) -> u8 {
+        self.key_length
+    }
+
+    fn get_op_code(&self) -> OpCode {
+        self.op_code
+    }
+}
+
+#[derive(Debug)]
+pub struct ResponseHeader {
+    pub op_code: OpCode,
+    pub status: Status,
+    pub key_length: u8,
+    pub total_frame_length: u32,
+}
+
+impl ResponseHeader {
+    pub fn new(op_code: OpCode, status: Status, key: Option<&str>, value: Option<&str>) -> Self {
+        let value_length = value.map_or(0, |s| s.len() as u32);
+        let key_length = key.map_or(0, |s| s.len() as u8);
+        Self {
+            op_code,
+            status,
+            // TODO key must not be longer than u8
+            key_length,
+            // TODO value must not be longer than u32
+            total_frame_length: HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length,
+        }
+    }
+}
+
+impl Header for ResponseHeader {
+    fn get_total_frame_length(&self) -> u32 {
+        self.total_frame_length
+    }
+    fn get_status_or_blank(&self) -> u8 {
+        self.status as u8
+    }
+
+    fn get_key_length(&self) -> u8 {
+        self.key_length
+    }
+
+    fn get_op_code(&self) -> OpCode {
+        self.op_code
+    }
+}
+
+impl TryFrom<Bytes> for RequestHeader {
+    type Error = FrameError;
+
+    fn try_from(mut value: Bytes) -> Result<Self, Self::Error> {
         if value.remaining() < HEADER_SIZE_BYTES as usize {
-            return Err(Error::Incomplete);
+            return Err(FrameError::Incomplete);
         }
         let op_code = OpCode::try_from(value.get_u8())?;
+        let blank = value.get_u8();
         let key_length = value.get_u8();
         let total_frame_length = value.get_u32();
 
         Ok(Self {
             op_code,
             key_length,
+            blank,
             total_frame_length,
         })
+    }
+}
+
+impl TryFrom<Bytes> for ResponseHeader {
+    type Error = FrameError;
+
+    fn try_from(mut value: Bytes) -> Result<Self, Self::Error> {
+        if value.remaining() < HEADER_SIZE_BYTES as usize {
+            return Err(FrameError::Incomplete);
+        }
+        let op_code = OpCode::try_from(value.get_u8())?;
+        let status = Status::try_from(value.get_u8())?;
+        let key_length = value.get_u8();
+        let total_frame_length = value.get_u32();
+
+        Ok(Self {
+            op_code,
+            status,
+            key_length,
+            total_frame_length,
+        })
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum Status {
+    Ok = 0,
+    KeyNotFound = 1,
+    KeyExists = 2,
+    InternalError = 3,
+}
+
+impl TryFrom<u8> for Status {
+    type Error = FrameError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Status::Ok),
+            1 => Ok(Status::KeyNotFound),
+            2 => Ok(Status::KeyExists),
+            3 => Ok(Status::InternalError),
+            _ => Err(FrameError::InvalidStatusCode),
+        }
     }
 }
 
@@ -125,7 +298,7 @@ pub enum OpCode {
 }
 
 impl TryFrom<u8> for OpCode {
-    type Error = Error;
+    type Error = FrameError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -133,18 +306,9 @@ impl TryFrom<u8> for OpCode {
             2 => Ok(OpCode::Get),
             3 => Ok(OpCode::Delete),
             4 => Ok(OpCode::Flush),
-            _ => Err(Error::InvalidOpCode),
+            _ => Err(FrameError::InvalidOpCode),
         }
     }
-}
-
-#[derive(Debug)]
-#[repr(u8)]
-pub enum Status {
-    Ok = 1,
-    KeyNotFound = 2,
-    KeyExists = 3,
-    InternalError = 4,
 }
 
 #[cfg(test)]

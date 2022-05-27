@@ -6,10 +6,16 @@
 // #![cfg_attr(all(test, feature = "nightly"), feature(test))]
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
+mod client;
 mod connection;
 mod frame;
+mod request;
+mod response;
 mod server;
 
+pub use client::Client;
 pub use connection::*;
 pub use frame::*;
+pub use request::Request;
+pub use response::Response;
 pub use server::Server;
