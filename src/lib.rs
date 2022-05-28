@@ -18,4 +18,6 @@ pub use connection::*;
 pub use frame::*;
 pub use request::Request;
 pub use response::Response;
+pub use response::ResponseBody;
+pub use response::ResponseBodyGet;
 pub use server::Server;

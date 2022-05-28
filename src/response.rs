@@ -1,6 +1,6 @@
 use crate::{Frame, OpCode, ResponseFrame, ResponseHeader, Status};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Response {
     pub status: Status,
     pub body: ResponseBody,
@@ -12,7 +12,7 @@ impl Response {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ResponseBody {
     Get(Option<ResponseBodyGet>),
     Set,
@@ -20,7 +20,7 @@ pub enum ResponseBody {
     Flush,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ResponseBodyGet {
     pub key: String,
     pub value: String,
