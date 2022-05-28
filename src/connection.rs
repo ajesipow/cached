@@ -49,10 +49,14 @@ impl Connection {
         F: Frame + Debug,
     {
         loop {
+            self.stream
+                .get_ref()
+                .readable()
+                .await
+                .map_err(|_| ConnectionError::Read("Could not read".to_string()))?;
             if let Some(frame) = self.parse_frame()? {
                 return Ok(Some(frame));
             }
-
             if 0 == self
                 .stream
                 .read_buf(&mut self.buffer)
@@ -89,6 +93,7 @@ impl Connection {
     where
         F: Frame + Debug,
     {
+        self.stream.get_ref().writable().await?;
         // TODO re-implement this elsewhere, the order etc is very specific to frame and should live there probably
         self.stream
             .write_u8(frame.get_header().get_op_code() as u8)

@@ -22,11 +22,68 @@ impl Client {
             .write_frame(&request_frame)
             .await
             .map_err(|_| ())?;
-        let frame = loop {
-            if let Ok(Some(f)) = self.conn.read_frame::<ResponseFrame>().await {
-                break f;
-            }
-        };
-        Response::try_from(frame).map_err(|_| ())
+        match self
+            .conn
+            .read_frame::<ResponseFrame>()
+            .await
+            .map_err(|_| ())?
+        {
+            Some(frame) => Response::try_from(frame).map_err(|_| ()),
+            None => Err(()),
+        }
+    }
+
+    pub async fn set(&mut self, key: String, value: String) -> Result<Response, ()> {
+        let header = RequestHeader::new(OpCode::Set, Some(key.as_str()), Some(value.as_str()));
+        let request_frame = RequestFrame::new(header, Some(key), Some(value));
+        self.conn
+            .write_frame(&request_frame)
+            .await
+            .map_err(|_| ())?;
+        match self
+            .conn
+            .read_frame::<ResponseFrame>()
+            .await
+            .map_err(|_| ())?
+        {
+            Some(frame) => Response::try_from(frame).map_err(|_| ()),
+            None => Err(()),
+        }
+    }
+
+    pub async fn delete(&mut self, key: String) -> Result<Response, ()> {
+        let header = RequestHeader::new(OpCode::Delete, Some(key.as_str()), None);
+        let request_frame = RequestFrame::new(header, Some(key), None);
+        self.conn
+            .write_frame(&request_frame)
+            .await
+            .map_err(|_| ())?;
+        match self
+            .conn
+            .read_frame::<ResponseFrame>()
+            .await
+            .map_err(|_| ())?
+        {
+            Some(frame) => Response::try_from(frame).map_err(|_| ()),
+            None => Err(()),
+        }
+    }
+
+    pub async fn flush(&mut self) -> Result<Response, ()> {
+        let header = RequestHeader::new(OpCode::Flush, None, None);
+        let request_frame = RequestFrame::new(header, None, None);
+        self.conn
+            .write_frame(&request_frame)
+            .await
+            .map_err(|_| ())?;
+        match self
+            .conn
+            .read_frame::<ResponseFrame>()
+            .await
+            .map_err(|_| ())?
+        {
+            Some(frame) => Response::try_from(frame).map_err(|_| ()),
+            None => Err(()),
+        }
     }
 }
