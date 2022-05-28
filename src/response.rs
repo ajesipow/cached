@@ -51,10 +51,14 @@ impl TryFrom<ResponseFrame> for Response {
     // TODO: error handling
     fn try_from(value: ResponseFrame) -> Result<Response, Self::Error> {
         let body = match value.header.op_code {
-            OpCode::Get => ResponseBody::Get(Some(ResponseBodyGet {
-                key: value.key.ok_or(())?,
-                value: value.value.ok_or(())?,
-            })),
+            OpCode::Get => {
+                let body = if let (Some(key), Some(value)) = (value.key, value.value) {
+                    Some(ResponseBodyGet { key, value })
+                } else {
+                    None
+                };
+                ResponseBody::Get(body)
+            }
             OpCode::Set => ResponseBody::Set,
             OpCode::Delete => ResponseBody::Delete,
             OpCode::Flush => ResponseBody::Flush,
