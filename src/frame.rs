@@ -58,7 +58,6 @@ pub trait Frame {
         Self: Sized,
     {
         let header = Self::Header::try_from(src.copy_to_bytes(HEADER_SIZE_BYTES as usize))?;
-        // src.advance(HEADER_SIZE_BYTES as usize);
         let key_length = header.get_key_length();
         let value_length =
             header.get_total_frame_length() - HEADER_SIZE_BYTES as u32 - key_length as u32;
@@ -164,8 +163,12 @@ impl RequestHeader {
 }
 
 impl Header for RequestHeader {
-    fn get_total_frame_length(&self) -> u32 {
-        self.total_frame_length
+    fn get_op_code(&self) -> OpCode {
+        self.op_code
+    }
+
+    fn get_key_length(&self) -> u8 {
+        self.key_length
     }
 
     // TODO rename
@@ -173,12 +176,8 @@ impl Header for RequestHeader {
         self.blank
     }
 
-    fn get_key_length(&self) -> u8 {
-        self.key_length
-    }
-
-    fn get_op_code(&self) -> OpCode {
-        self.op_code
+    fn get_total_frame_length(&self) -> u32 {
+        self.total_frame_length
     }
 }
 
@@ -206,19 +205,19 @@ impl ResponseHeader {
 }
 
 impl Header for ResponseHeader {
-    fn get_total_frame_length(&self) -> u32 {
-        self.total_frame_length
+    fn get_op_code(&self) -> OpCode {
+        self.op_code
     }
-    fn get_status_or_blank(&self) -> u8 {
-        self.status as u8
-    }
-
     fn get_key_length(&self) -> u8 {
         self.key_length
     }
 
-    fn get_op_code(&self) -> OpCode {
-        self.op_code
+    fn get_status_or_blank(&self) -> u8 {
+        self.status as u8
+    }
+
+    fn get_total_frame_length(&self) -> u32 {
+        self.total_frame_length
     }
 }
 
@@ -342,5 +341,33 @@ mod test {
     #[case(10)]
     fn test_op_code_deserialisation_fails_for_wrong_codes(#[case] input: u8) {
         assert!(OpCode::try_from(input).is_err());
+    }
+
+    #[test]
+    fn test_status_code_serialisation() {
+        assert_eq!(Status::Ok as u8, 0);
+        assert_eq!(Status::KeyNotFound as u8, 1);
+        assert_eq!(Status::KeyExists as u8, 2);
+        assert_eq!(Status::InternalError as u8, 3);
+    }
+
+    #[test]
+    fn test_status_code_deserialisation_works() {
+        assert_eq!(Status::try_from(0), Ok(Status::Ok));
+        assert_eq!(Status::try_from(1), Ok(Status::KeyNotFound));
+        assert_eq!(Status::try_from(2), Ok(Status::KeyExists));
+        assert_eq!(Status::try_from(3), Ok(Status::InternalError));
+    }
+
+    #[rstest]
+    #[case(4)]
+    #[case(5)]
+    #[case(6)]
+    #[case(7)]
+    #[case(8)]
+    #[case(9)]
+    #[case(10)]
+    fn test_status_code_deserialisation_fails_for_wrong_codes(#[case] input: u8) {
+        assert!(Status::try_from(input).is_err());
     }
 }
