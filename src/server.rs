@@ -69,7 +69,7 @@ async fn read_request(conn: &mut Connection) -> Result<Option<Request>, ()> {
 }
 
 async fn write_response(conn: &mut Connection, resp: Response) -> Result<(), ()> {
-    let frame = ResponseFrame::try_from(resp)?;
+    let frame = ResponseFrame::from(resp);
     // TODO proper error handling
     conn.write_frame(&frame).await.map_err(|_| ())
 }

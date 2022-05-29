@@ -1,16 +1,4 @@
 #![allow(dead_code)]
-// SET
-// - Req: K, V
-// - Resp: V
-// GET
-// - Req: K
-// - Resp: V
-// DELETE
-// - Req: K
-// - Resp: V
-// FLUSH
-// - Req: na
-// - Resp: count
 
 use bytes::{Buf, Bytes};
 use std::fmt::Debug;
@@ -139,6 +127,7 @@ fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String, FrameError> {
 
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
+// TODO: newtype idiom?
 pub struct RequestHeader {
     pub op_code: OpCode,
     /// Can be ignored
