@@ -59,8 +59,11 @@ async fn read_request(conn: &mut Connection) -> Result<Option<Request>, ()> {
     let frame = conn.read_frame::<RequestFrame>().await;
     println!("Frame: {:?}", frame);
     match frame {
-        Ok(maybe_frame) => maybe_frame.map(Request::try_from).transpose(),
         // TODO proper error handling
+        Ok(maybe_frame) => maybe_frame
+            .map(Request::try_from)
+            .transpose()
+            .map_err(|_| ()),
         Err(_) => Err(()),
     }
 }
