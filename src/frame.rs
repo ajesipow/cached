@@ -339,12 +339,12 @@ mod test {
     #[case(8)]
     #[case(9)]
     #[case(10)]
-    fn test_op_code_deserialisation_fails_for_wrong_codes(#[case] input: u8) {
+    fn test_op_code_deserialization_fails_for_wrong_codes(#[case] input: u8) {
         assert!(OpCode::try_from(input).is_err());
     }
 
     #[test]
-    fn test_status_code_serialisation() {
+    fn test_status_code_serialization() {
         assert_eq!(Status::Ok as u8, 0);
         assert_eq!(Status::KeyNotFound as u8, 1);
         assert_eq!(Status::KeyExists as u8, 2);
@@ -352,7 +352,7 @@ mod test {
     }
 
     #[test]
-    fn test_status_code_deserialisation_works() {
+    fn test_status_code_deserialization_works() {
         assert_eq!(Status::try_from(0), Ok(Status::Ok));
         assert_eq!(Status::try_from(1), Ok(Status::KeyNotFound));
         assert_eq!(Status::try_from(2), Ok(Status::KeyExists));
@@ -367,7 +367,7 @@ mod test {
     #[case(8)]
     #[case(9)]
     #[case(10)]
-    fn test_status_code_deserialisation_fails_for_wrong_codes(#[case] input: u8) {
+    fn test_status_code_deserialization_fails_for_wrong_codes(#[case] input: u8) {
         assert!(Status::try_from(input).is_err());
     }
 }
