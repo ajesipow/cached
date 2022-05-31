@@ -45,6 +45,32 @@ async fn test_setting_a_key_works() {
 }
 
 #[tokio::test]
+async fn test_setting_the_same_key_twice_fails() {
+    let address = run_test_server().await;
+    let mut client = Client::new(address).await;
+
+    let key = "ABC".to_string();
+    let value = "1234".to_string();
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(resp.status, Status::KeyNotFound);
+
+    let resp = client.set(key.clone(), value.clone()).await.unwrap();
+    assert_eq!(resp.status, Status::Ok);
+
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(
+        resp,
+        Response::new(
+            Status::Ok,
+            ResponseBody::Get(Some(ResponseBodyGet { key: key.clone(), value: value.clone() }))
+        )
+    );
+
+    let resp = client.set(key, value).await.unwrap();
+    assert_eq!(resp.status, Status::KeyExists);
+}
+
+#[tokio::test]
 async fn test_deleting_a_key_works() {
     let address = run_test_server().await;
     let mut client = Client::new(address).await;

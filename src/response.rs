@@ -142,7 +142,7 @@ mod test {
     #[case(OpCode::Flush, Status::Ok, Some("ABC".to_string()), None)]
     #[case(OpCode::Flush, Status::Ok, None, Some("ABC".to_string()))]
     #[case(OpCode::Flush, Status::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
-    fn test_conversion_from_invalid_response_frame_to_response_fails(
+    fn test_conversion_from_invalid_response_frame_to_response_fails1(
         #[case] op_code: OpCode,
         #[case] status: Status,
         #[case] key: Option<String>,
