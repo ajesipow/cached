@@ -26,8 +26,10 @@ pub struct ResponseBodyGet {
     pub value: String,
 }
 
-impl From<Response> for ResponseFrame {
-    fn from(resp: Response) -> Self {
+impl TryFrom<Response> for ResponseFrame {
+    // TODO Error handling
+    type Error = ();
+    fn try_from(resp: Response) -> Result<Self, ()> {
         let (op_code, key, value) = match resp.body {
             ResponseBody::Get(get_body) => {
                 let (k, v) = get_body.map_or((None, None), |b| (Some(b.key), Some(b.value)));
@@ -37,8 +39,9 @@ impl From<Response> for ResponseFrame {
             ResponseBody::Delete => (OpCode::Delete, None, None),
             ResponseBody::Flush => (OpCode::Flush, None, None),
         };
-        let header = ResponseHeader::new(op_code, resp.status, key.as_deref(), value.as_deref());
-        ResponseFrame::new(header, key, value)
+        let header = ResponseHeader::parse(op_code, resp.status, key.as_deref(), value.as_deref())
+            .map_err(|_| ())?;
+        Ok(ResponseFrame::new(header, key, value))
     }
 }
 
@@ -112,7 +115,8 @@ mod test {
         #[case] expected_response_body: ResponseBody,
     ) {
         let resp_frame = ResponseFrame {
-            header: ResponseHeader::new(op_code, status, key.as_deref(), value.as_deref()),
+            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref())
+                .unwrap(),
             key,
             value,
         };
@@ -149,7 +153,8 @@ mod test {
         #[case] value: Option<String>,
     ) {
         let resp_frame = ResponseFrame {
-            header: ResponseHeader::new(op_code, status, key.as_deref(), value.as_deref()),
+            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref())
+                .unwrap(),
             key,
             value,
         };
