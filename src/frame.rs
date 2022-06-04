@@ -1,18 +1,8 @@
-#![allow(dead_code)]
-
 use bytes::{Buf, Bytes};
 use std::fmt::Debug;
 use std::io::Cursor;
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
-pub enum FrameError {
-    Incomplete,
-    InvalidOpCode,
-    InvalidStatusCode,
-    KeyTooLong,
-    ValueTooLong,
-}
+use crate::error::{Error, FrameError, Result};
 
 static HEADER_SIZE_BYTES: u8 = 7;
 
@@ -24,26 +14,26 @@ pub trait Header {
 }
 
 pub trait Frame {
-    type Header: Header + TryFrom<Bytes, Error = FrameError> + Debug;
+    type Header: Header + TryFrom<Bytes, Error = Error> + Debug;
 
     fn new(header: Self::Header, key: Option<String>, value: Option<String>) -> Self;
     fn get_header(&self) -> &Self::Header;
     fn get_key(&self) -> Option<&str>;
     fn get_value(&self) -> Option<&str>;
 
-    fn check(src: &mut Cursor<&[u8]>) -> Result<usize, FrameError> {
+    fn check(src: &mut Cursor<&[u8]>) -> Result<usize> {
         if src.remaining() < HEADER_SIZE_BYTES as usize {
-            return Err(FrameError::Incomplete);
+            return Err(Error::Frame(FrameError::Incomplete));
         }
         let header = Self::Header::try_from(src.copy_to_bytes(HEADER_SIZE_BYTES as usize))?;
 
         if src.remaining() < header.get_total_frame_length() as usize - HEADER_SIZE_BYTES as usize {
-            return Err(FrameError::Incomplete);
+            return Err(Error::Frame(FrameError::Incomplete));
         }
         Ok(header.get_total_frame_length() as usize)
     }
 
-    fn parse(src: &mut Cursor<&[u8]>) -> Result<Self, FrameError>
+    fn parse(src: &mut Cursor<&[u8]>) -> Result<Self>
     where
         Self: Sized,
     {
@@ -117,9 +107,9 @@ impl Frame for RequestFrame {
     }
 }
 
-fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String, FrameError> {
+fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String> {
     if src.remaining() < len as usize {
-        return Err(FrameError::Incomplete);
+        return Err(Error::Frame(FrameError::Incomplete));
     }
     let value = String::from_utf8_lossy(src.take(len as usize).chunk()).to_string();
     let new_position = src.position() + len as u64;
@@ -142,12 +132,7 @@ struct RequestHeaderInner {
 }
 
 impl RequestHeader {
-    // TODO Error handling
-    pub fn parse(
-        op_code: OpCode,
-        key: Option<&str>,
-        value: Option<&str>,
-    ) -> Result<Self, FrameError> {
+    pub fn parse(op_code: OpCode, key: Option<&str>, value: Option<&str>) -> Result<Self> {
         let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
         Ok(Self(RequestHeaderInner {
             op_code,
@@ -163,28 +148,25 @@ impl RequestHeader {
 }
 
 /// Key must not be longer than u8::MAX
-fn validate_key_length(key: Option<&str>) -> Result<u8, FrameError> {
+fn validate_key_length(key: Option<&str>) -> Result<u8> {
     let key_length = key.map_or(0, |s| s.len());
     if key_length > u8::MAX as usize {
-        return Err(FrameError::KeyTooLong);
+        return Err(Error::Frame(FrameError::KeyTooLong));
     }
     Ok(key_length as u8)
 }
 
 /// Value must not greater than 1MB
-fn validate_value_length(value: Option<&str>) -> Result<u32, FrameError> {
+fn validate_value_length(value: Option<&str>) -> Result<u32> {
     let value_length = value.map_or(0, |s| s.len());
     let max_value_length = 1024 * 1024;
     if value_length > max_value_length as usize {
-        return Err(FrameError::ValueTooLong);
+        return Err(Error::Frame(FrameError::ValueTooLong));
     }
     Ok(value_length as u32)
 }
 
-fn get_key_and_total_frame_length(
-    key: Option<&str>,
-    value: Option<&str>,
-) -> Result<(u8, u32), FrameError> {
+fn get_key_and_total_frame_length(key: Option<&str>, value: Option<&str>) -> Result<(u8, u32)> {
     let key_length = validate_key_length(key)?;
     let value_length = validate_value_length(value)?;
     let total_frame_length = HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length;
@@ -224,13 +206,12 @@ struct ResponseHeaderInner {
 }
 
 impl ResponseHeader {
-    // TODO Error handling
     pub fn parse(
         op_code: OpCode,
         status: Status,
         key: Option<&str>,
         value: Option<&str>,
-    ) -> Result<Self, FrameError> {
+    ) -> Result<Self> {
         let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
         Ok(Self(ResponseHeaderInner {
             op_code,
@@ -267,11 +248,11 @@ impl Header for ResponseHeader {
 }
 
 impl TryFrom<Bytes> for RequestHeader {
-    type Error = FrameError;
+    type Error = Error;
 
-    fn try_from(mut value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(mut value: Bytes) -> Result<Self> {
         if value.remaining() < HEADER_SIZE_BYTES as usize {
-            return Err(FrameError::Incomplete);
+            return Err(Error::Frame(FrameError::Incomplete));
         }
         let op_code = OpCode::try_from(value.get_u8())?;
         let blank = value.get_u8();
@@ -288,11 +269,11 @@ impl TryFrom<Bytes> for RequestHeader {
 }
 
 impl TryFrom<Bytes> for ResponseHeader {
-    type Error = FrameError;
+    type Error = Error;
 
-    fn try_from(mut value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(mut value: Bytes) -> Result<Self> {
         if value.remaining() < HEADER_SIZE_BYTES as usize {
-            return Err(FrameError::Incomplete);
+            return Err(Error::Frame(FrameError::Incomplete));
         }
         let op_code = OpCode::try_from(value.get_u8())?;
         let status = Status::try_from(value.get_u8())?;
@@ -318,15 +299,15 @@ pub enum Status {
 }
 
 impl TryFrom<u8> for Status {
-    type Error = FrameError;
+    type Error = Error;
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self> {
         match value {
             0 => Ok(Status::Ok),
             1 => Ok(Status::KeyNotFound),
             2 => Ok(Status::KeyExists),
             3 => Ok(Status::InternalError),
-            _ => Err(FrameError::InvalidStatusCode),
+            _ => Err(Error::Frame(FrameError::InvalidStatusCode)),
         }
     }
 }
@@ -342,15 +323,15 @@ pub enum OpCode {
 }
 
 impl TryFrom<u8> for OpCode {
-    type Error = FrameError;
+    type Error = Error;
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self> {
         match value {
             1 => Ok(OpCode::Set),
             2 => Ok(OpCode::Get),
             3 => Ok(OpCode::Delete),
             4 => Ok(OpCode::Flush),
-            _ => Err(FrameError::InvalidOpCode),
+            _ => Err(Error::Frame(FrameError::InvalidOpCode)),
         }
     }
 }
@@ -430,7 +411,7 @@ mod test {
         let key = "a".repeat(u8::MAX as usize + 1);
         assert_eq!(
             RequestHeader::parse(OpCode::Get, Some(key.as_str()), None),
-            Err(FrameError::KeyTooLong)
+            Err(Error::Frame(FrameError::KeyTooLong))
         );
     }
 
@@ -448,7 +429,7 @@ mod test {
         let value = "a".repeat((1024 * 1024) as usize + 1);
         assert_eq!(
             RequestHeader::parse(OpCode::Get, None, Some(value.as_str())),
-            Err(FrameError::ValueTooLong)
+            Err(Error::Frame(FrameError::ValueTooLong))
         );
     }
 
@@ -476,7 +457,7 @@ mod test {
         let key = "a".repeat(u8::MAX as usize + 1);
         assert_eq!(
             ResponseHeader::parse(OpCode::Get, Status::Ok, Some(key.as_str()), None),
-            Err(FrameError::KeyTooLong)
+            Err(Error::Frame(FrameError::KeyTooLong))
         );
     }
 
@@ -494,7 +475,7 @@ mod test {
         let value = "a".repeat((1024 * 1024) as usize + 1);
         assert_eq!(
             ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str())),
-            Err(FrameError::ValueTooLong)
+            Err(Error::Frame(FrameError::ValueTooLong))
         );
     }
 

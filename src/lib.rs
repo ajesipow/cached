@@ -8,6 +8,7 @@
 
 mod client;
 mod connection;
+mod error;
 mod frame;
 mod request;
 mod response;

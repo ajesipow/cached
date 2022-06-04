@@ -1,3 +1,4 @@
+use crate::error::{Error, Parse};
 use crate::{Frame, OpCode, RequestFrame, RequestHeader};
 
 #[derive(Debug)]
@@ -10,26 +11,24 @@ pub enum Request {
 }
 
 impl TryFrom<Request> for RequestFrame {
-    type Error = ();
+    type Error = Error;
 
     fn try_from(req: Request) -> Result<Self, Self::Error> {
         let (header, key, value) = match req {
             Request::Get(key) => {
-                let header = RequestHeader::parse(OpCode::Get, Some(&key), None).map_err(|_| ())?;
+                let header = RequestHeader::parse(OpCode::Get, Some(&key), None)?;
                 (header, Some(key), None)
             }
             Request::Set { key, value } => {
-                let header =
-                    RequestHeader::parse(OpCode::Set, Some(&key), Some(&value)).map_err(|_| ())?;
+                let header = RequestHeader::parse(OpCode::Set, Some(&key), Some(&value))?;
                 (header, Some(key), Some(value))
             }
             Request::Delete(key) => {
-                let header =
-                    RequestHeader::parse(OpCode::Delete, Some(&key), None).map_err(|_| ())?;
+                let header = RequestHeader::parse(OpCode::Delete, Some(&key), None)?;
                 (header, Some(key), None)
             }
             Request::Flush => {
-                let header = RequestHeader::parse(OpCode::Flush, None, None).map_err(|_| ())?;
+                let header = RequestHeader::parse(OpCode::Flush, None, None)?;
                 (header, None, None)
             }
         };
@@ -38,42 +37,36 @@ impl TryFrom<Request> for RequestFrame {
 }
 
 impl TryFrom<RequestFrame> for Request {
-    type Error = String;
+    type Error = Error;
 
     fn try_from(frame: RequestFrame) -> Result<Self, Self::Error> {
         match frame.header.get_opcode() {
             OpCode::Set => Ok(Request::Set {
-                key: frame
-                    .key
-                    .ok_or(())
-                    .map_err(|_| "Missing key for Set request.".to_string())?,
-                value: frame
-                    .value
-                    .ok_or(())
-                    .map_err(|_| "Missing value for Set request.".to_string())?,
+                key: frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
+                value: frame.value.ok_or(Error::Parse(Parse::ValueMissing))?,
             }),
             OpCode::Get => {
                 if frame.value.is_some() {
-                    return Err("Must not provide value for Get request.".to_string());
+                    return Err(Error::Parse(Parse::UnexpectedValue));
                 }
                 Ok(Request::Get(
-                    frame
-                        .key
-                        .ok_or(())
-                        .map_err(|_| "Missing key for Get request.".to_string())?,
+                    frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
                 ))
             }
             OpCode::Delete => {
                 if frame.value.is_some() {
-                    return Err("Must not provide value for Delete request.".to_string());
+                    return Err(Error::Parse(Parse::UnexpectedValue));
                 }
-                Ok(Request::Delete(frame.key.ok_or(()).map_err(|_| {
-                    "Missing key for Delete request.".to_string()
-                })?))
+                Ok(Request::Delete(
+                    frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
+                ))
             }
             OpCode::Flush => {
-                if frame.value.is_some() || frame.key.is_some() {
-                    return Err("Must not provide key and/or value for Flush request.".to_string());
+                if frame.key.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedKey));
+                }
+                if frame.value.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedValue));
                 }
                 Ok(Request::Flush)
             }

@@ -1,3 +1,4 @@
+use crate::error::{Error, Parse};
 use crate::{Frame, OpCode, ResponseFrame, ResponseHeader, Status};
 
 #[derive(Debug, Eq, PartialEq)]
@@ -27,9 +28,8 @@ pub struct ResponseBodyGet {
 }
 
 impl TryFrom<Response> for ResponseFrame {
-    // TODO Error handling
-    type Error = ();
-    fn try_from(resp: Response) -> Result<Self, ()> {
+    type Error = Error;
+    fn try_from(resp: Response) -> Result<Self, Self::Error> {
         let (op_code, key, value) = match resp.body {
             ResponseBody::Get(get_body) => {
                 let (k, v) = get_body.map_or((None, None), |b| (Some(b.key), Some(b.value)));
@@ -39,45 +39,60 @@ impl TryFrom<Response> for ResponseFrame {
             ResponseBody::Delete => (OpCode::Delete, None, None),
             ResponseBody::Flush => (OpCode::Flush, None, None),
         };
-        let header = ResponseHeader::parse(op_code, resp.status, key.as_deref(), value.as_deref())
-            .map_err(|_| ())?;
+        let header = ResponseHeader::parse(op_code, resp.status, key.as_deref(), value.as_deref())?;
         Ok(ResponseFrame::new(header, key, value))
     }
 }
 
 impl TryFrom<ResponseFrame> for Response {
-    type Error = String;
+    type Error = Error;
 
     fn try_from(frame: ResponseFrame) -> Result<Response, Self::Error> {
         let body = match frame.header.get_opcode() {
             OpCode::Get => {
-                let body = if let (Some(key), Some(value)) = (frame.key, frame.value) {
-                    Some(ResponseBodyGet { key, value })
-                } else {
-                    if frame.header.get_status() == &Status::Ok {
-                        return Err(
-                            "Expected key and value, but one or both are missing.".to_string()
-                        );
+                // TODO beautify
+                let body_result = match (frame.key, frame.value) {
+                    (Some(key), Some(value)) => Ok(Some(ResponseBodyGet { key, value })),
+                    (Some(_), None) => Err(Error::Parse(Parse::ValueMissing)),
+                    (None, Some(_)) => Err(Error::Parse(Parse::KeyMissing)),
+                    (None, None) => Err(Error::Parse(Parse::KeyMissing)),
+                };
+                let body = match body_result {
+                    Ok(Some(response_body)) => Some(response_body),
+                    Ok(None) => None,
+                    Err(e) => {
+                        if frame.header.get_status() == &Status::Ok {
+                            return Err(e);
+                        }
+                        None
                     }
-                    None
                 };
                 ResponseBody::Get(body)
             }
             OpCode::Set => {
-                if frame.key.is_some() || frame.value.is_some() {
-                    return Err("Must not provide key and value for Set response".to_string());
+                if frame.key.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedKey));
+                }
+                if frame.value.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedValue));
                 }
                 ResponseBody::Set
             }
             OpCode::Delete => {
-                if frame.key.is_some() || frame.value.is_some() {
-                    return Err("Must not provide key and value for Delete response".to_string());
+                if frame.key.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedKey));
+                }
+                if frame.value.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedValue));
                 }
                 ResponseBody::Delete
             }
             OpCode::Flush => {
-                if frame.key.is_some() || frame.value.is_some() {
-                    return Err("Must not provide key and value for Flush response".to_string());
+                if frame.key.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedKey));
+                }
+                if frame.value.is_some() {
+                    return Err(Error::Parse(Parse::UnexpectedValue));
                 }
                 ResponseBody::Flush
             }
@@ -146,7 +161,7 @@ mod test {
     #[case(OpCode::Flush, Status::Ok, Some("ABC".to_string()), None)]
     #[case(OpCode::Flush, Status::Ok, None, Some("ABC".to_string()))]
     #[case(OpCode::Flush, Status::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
-    fn test_conversion_from_invalid_response_frame_to_response_fails1(
+    fn test_conversion_from_invalid_response_frame_to_response_fails(
         #[case] op_code: OpCode,
         #[case] status: Status,
         #[case] key: Option<String>,

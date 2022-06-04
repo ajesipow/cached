@@ -55,28 +55,24 @@ impl Server {
     }
 }
 
-async fn read_request(conn: &mut Connection) -> Result<Option<Request>, ()> {
+async fn read_request(conn: &mut Connection) -> crate::error::Result<Option<Request>> {
     let frame = conn.read_frame::<RequestFrame>().await;
     match frame {
         // TODO proper error handling
-        Ok(maybe_frame) => maybe_frame
-            .map(Request::try_from)
-            .transpose()
-            .map_err(|_| ()),
-        Err(_) => Err(()),
+        Ok(maybe_frame) => maybe_frame.map(Request::try_from).transpose(),
+        Err(e) => Err(e),
     }
 }
 
-async fn write_response(conn: &mut Connection, resp: Response) -> Result<(), ()> {
+async fn write_response(conn: &mut Connection, resp: Response) -> crate::error::Result<()> {
     let frame = ResponseFrame::try_from(resp)?;
     // TODO proper error handling
-    conn.write_frame(&frame).await.map_err(|_| ())
+    conn.write_frame(&frame).await
 }
 
 fn handle_request(req: Request, db: Arc<Mutex<HashMap<String, String>>>) -> Response {
     match req {
         Request::Get(key) => {
-            // TODO error handling
             let state = db.lock().unwrap();
             match state.get(&key) {
                 Some(val) => Response::new(
