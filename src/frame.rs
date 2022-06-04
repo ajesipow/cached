@@ -141,28 +141,48 @@ struct RequestHeaderInner {
 
 impl RequestHeader {
     // TODO Error handling
-    /// Key must not be longer than u8::MAX, value not longer than u32::MAX / 2
     pub fn parse(op_code: OpCode, key: Option<&str>, value: Option<&str>) -> Result<Self, String> {
-        let value_length = value.map_or(0, |s| s.len());
-        let key_length = key.map_or(0, |s| s.len());
-        if key_length > u8::MAX as usize {
-            return Err("Key too long!".to_string());
-        }
-        let max_value_length = u32::MAX / 2;
-        if value_length > max_value_length as usize {
-            return Err("Value too long!".to_string());
-        }
+        let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
         Ok(Self(RequestHeaderInner {
             op_code,
             blank: 0,
-            key_length: key_length as u8,
-            total_frame_length: HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length as u32,
+            key_length,
+            total_frame_length,
         }))
     }
 
     pub fn get_opcode(&self) -> &OpCode {
         &self.0.op_code
     }
+}
+
+/// Key must not be longer than u8::MAX
+fn validate_key_length(key: Option<&str>) -> Result<u8, String> {
+    let key_length = key.map_or(0, |s| s.len());
+    if key_length > u8::MAX as usize {
+        return Err("Key too long!".to_string());
+    }
+    Ok(key_length as u8)
+}
+
+/// Value must not longer be than u32::MAX / 2
+fn validate_value_length(value: Option<&str>) -> Result<u32, String> {
+    let value_length = value.map_or(0, |s| s.len());
+    let max_value_length = u32::MAX / 2;
+    if value_length > max_value_length as usize {
+        return Err("Value too long!".to_string());
+    }
+    Ok(value_length as u32)
+}
+
+fn get_key_and_total_frame_length(
+    key: Option<&str>,
+    value: Option<&str>,
+) -> Result<(u8, u32), String> {
+    let key_length = validate_key_length(key)?;
+    let value_length = validate_value_length(value)?;
+    let total_frame_length = HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length;
+    Ok((key_length, total_frame_length))
 }
 
 impl Header for RequestHeader {
