@@ -10,6 +10,8 @@ pub enum FrameError {
     Incomplete,
     InvalidOpCode,
     InvalidStatusCode,
+    KeyTooLong,
+    ValueTooLong,
 }
 
 static HEADER_SIZE_BYTES: u8 = 7;
@@ -141,7 +143,11 @@ struct RequestHeaderInner {
 
 impl RequestHeader {
     // TODO Error handling
-    pub fn parse(op_code: OpCode, key: Option<&str>, value: Option<&str>) -> Result<Self, String> {
+    pub fn parse(
+        op_code: OpCode,
+        key: Option<&str>,
+        value: Option<&str>,
+    ) -> Result<Self, FrameError> {
         let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
         Ok(Self(RequestHeaderInner {
             op_code,
@@ -157,20 +163,20 @@ impl RequestHeader {
 }
 
 /// Key must not be longer than u8::MAX
-fn validate_key_length(key: Option<&str>) -> Result<u8, String> {
+fn validate_key_length(key: Option<&str>) -> Result<u8, FrameError> {
     let key_length = key.map_or(0, |s| s.len());
     if key_length > u8::MAX as usize {
-        return Err("Key too long!".to_string());
+        return Err(FrameError::KeyTooLong);
     }
     Ok(key_length as u8)
 }
 
-/// Value must not longer be than u32::MAX / 2
-fn validate_value_length(value: Option<&str>) -> Result<u32, String> {
+/// Value must not greater than 1MB
+fn validate_value_length(value: Option<&str>) -> Result<u32, FrameError> {
     let value_length = value.map_or(0, |s| s.len());
-    let max_value_length = u32::MAX / 2;
+    let max_value_length = 1024 * 1024;
     if value_length > max_value_length as usize {
-        return Err("Value too long!".to_string());
+        return Err(FrameError::ValueTooLong);
     }
     Ok(value_length as u32)
 }
@@ -178,7 +184,7 @@ fn validate_value_length(value: Option<&str>) -> Result<u32, String> {
 fn get_key_and_total_frame_length(
     key: Option<&str>,
     value: Option<&str>,
-) -> Result<(u8, u32), String> {
+) -> Result<(u8, u32), FrameError> {
     let key_length = validate_key_length(key)?;
     let value_length = validate_value_length(value)?;
     let total_frame_length = HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length;
@@ -205,9 +211,11 @@ impl Header for RequestHeader {
 }
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct ResponseHeader(ResponseHeaderInner);
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 struct ResponseHeaderInner {
     pub op_code: OpCode,
     pub status: Status,
@@ -222,7 +230,7 @@ impl ResponseHeader {
         status: Status,
         key: Option<&str>,
         value: Option<&str>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, FrameError> {
         let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
         Ok(Self(ResponseHeaderInner {
             op_code,
@@ -420,15 +428,15 @@ mod test {
     #[test]
     fn test_parsing_request_header_with_too_long_key_fails() {
         let key = "a".repeat(u8::MAX as usize + 1);
-        assert!(
-            RequestHeader::parse(OpCode::Get, Some(key.as_str()), None).is_err(),
-            "Was able to parse a key that is too long!"
+        assert_eq!(
+            RequestHeader::parse(OpCode::Get, Some(key.as_str()), None),
+            Err(FrameError::KeyTooLong)
         );
     }
 
     #[test]
     fn test_parsing_request_header_with_valid_long_value_works() {
-        let value = "a".repeat((u32::MAX / 2) as usize);
+        let value = "a".repeat((1024 * 1024) as usize);
         assert!(
             RequestHeader::parse(OpCode::Get, None, Some(value.as_str())).is_ok(),
             "Was not able to parse a valid long value!"
@@ -437,17 +445,17 @@ mod test {
 
     #[test]
     fn test_parsing_request_header_with_too_long_value_fails() {
-        let value = "a".repeat((u32::MAX / 2) as usize + 1);
-        assert!(
-            RequestHeader::parse(OpCode::Get, None, Some(value.as_str())).is_err(),
-            "Was able to parse a value that is too long!"
+        let value = "a".repeat((1024 * 1024) as usize + 1);
+        assert_eq!(
+            RequestHeader::parse(OpCode::Get, None, Some(value.as_str())),
+            Err(FrameError::ValueTooLong)
         );
     }
 
     #[test]
     fn test_parsing_request_header_with_valid_long_key_and_value_works() {
         let key = "a".repeat(u8::MAX as usize);
-        let value = "a".repeat((u32::MAX / 2) as usize);
+        let value = "a".repeat((1024 * 1024) as usize);
         assert!(
             RequestHeader::parse(OpCode::Get, Some(key.as_str()), Some(value.as_str())).is_ok(),
             "Was not able to parse a valid long value!"
@@ -466,15 +474,15 @@ mod test {
     #[test]
     fn test_parsing_response_header_with_too_long_key_fails() {
         let key = "a".repeat(u8::MAX as usize + 1);
-        assert!(
-            ResponseHeader::parse(OpCode::Get, Status::Ok, Some(key.as_str()), None).is_err(),
-            "Was able to parse a key that is too long!"
+        assert_eq!(
+            ResponseHeader::parse(OpCode::Get, Status::Ok, Some(key.as_str()), None),
+            Err(FrameError::KeyTooLong)
         );
     }
 
     #[test]
     fn test_parsing_response_header_with_valid_long_value_works() {
-        let value = "a".repeat((u32::MAX / 2) as usize);
+        let value = "a".repeat((1024 * 1024) as usize);
         assert!(
             ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str())).is_ok(),
             "Was not able to parse a valid long value!"
@@ -483,17 +491,17 @@ mod test {
 
     #[test]
     fn test_parsing_response_header_with_too_long_value_fails() {
-        let value = "a".repeat((u32::MAX / 2) as usize + 1);
-        assert!(
-            ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str())).is_err(),
-            "Was able to parse a value that is too long!"
+        let value = "a".repeat((1024 * 1024) as usize + 1);
+        assert_eq!(
+            ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str())),
+            Err(FrameError::ValueTooLong)
         );
     }
 
     #[test]
     fn test_parsing_response_header_with_valid_long_key_and_value_works() {
         let key = "a".repeat(u8::MAX as usize);
-        let value = "a".repeat((u32::MAX / 2) as usize);
+        let value = "a".repeat((1024 * 1024) as usize);
         assert!(
             ResponseHeader::parse(
                 OpCode::Get,
