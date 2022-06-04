@@ -1,4 +1,4 @@
-use crate::{OpCode, RequestFrame};
+use crate::{Frame, OpCode, RequestFrame, RequestHeader};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -7,6 +7,34 @@ pub enum Request {
     Set { key: String, value: String },
     Delete(String),
     Flush,
+}
+
+impl TryFrom<Request> for RequestFrame {
+    type Error = ();
+
+    fn try_from(req: Request) -> Result<Self, Self::Error> {
+        let (header, key, value) = match req {
+            Request::Get(key) => {
+                let header = RequestHeader::parse(OpCode::Get, Some(&key), None).map_err(|_| ())?;
+                (header, Some(key), None)
+            }
+            Request::Set { key, value } => {
+                let header =
+                    RequestHeader::parse(OpCode::Set, Some(&key), Some(&value)).map_err(|_| ())?;
+                (header, Some(key), Some(value))
+            }
+            Request::Delete(key) => {
+                let header =
+                    RequestHeader::parse(OpCode::Delete, Some(&key), None).map_err(|_| ())?;
+                (header, Some(key), None)
+            }
+            Request::Flush => {
+                let header = RequestHeader::parse(OpCode::Flush, None, None).map_err(|_| ())?;
+                (header, None, None)
+            }
+        };
+        Ok(RequestFrame::new(header, key, value))
+    }
 }
 
 impl TryFrom<RequestFrame> for Request {

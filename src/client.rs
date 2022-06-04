@@ -1,4 +1,4 @@
-use crate::{Connection, Frame, OpCode, RequestFrame, RequestHeader, Response, ResponseFrame};
+use crate::{Connection, Request, RequestFrame, Response, ResponseFrame};
 use tokio::net::{TcpStream, ToSocketAddrs};
 
 #[derive(Debug)]
@@ -16,35 +16,31 @@ impl Client {
 
     // TODO: error handling
     pub async fn get(&mut self, key: String) -> Result<Response, ()> {
-        // TODO build a request instead?
-        // TODO Error handling
-        let header = RequestHeader::parse(OpCode::Get, Some(key.as_str()), None).map_err(|_| ())?;
-        let request_frame = RequestFrame::new(header, Some(key), None);
-        self.send(&request_frame).await
+        let request = Request::Get(key);
+        self.send_request(request).await
     }
 
     pub async fn set(&mut self, key: String, value: String) -> Result<Response, ()> {
-        let header = RequestHeader::parse(OpCode::Set, Some(key.as_str()), Some(value.as_str()))
-            .map_err(|_| ())?;
-        let request_frame = RequestFrame::new(header, Some(key), Some(value));
-        self.send(&request_frame).await
+        let request = Request::Set { key, value };
+        self.send_request(request).await
     }
 
     pub async fn delete(&mut self, key: String) -> Result<Response, ()> {
-        let header =
-            RequestHeader::parse(OpCode::Delete, Some(key.as_str()), None).map_err(|_| ())?;
-        let request_frame = RequestFrame::new(header, Some(key), None);
-        self.send(&request_frame).await
+        let request = Request::Delete(key);
+        self.send_request(request).await
     }
 
     pub async fn flush(&mut self) -> Result<Response, ()> {
-        let header = RequestHeader::parse(OpCode::Flush, None, None).map_err(|_| ())?;
-        let request_frame = RequestFrame::new(header, None, None);
-        self.send(&request_frame).await
+        let request = Request::Flush;
+        self.send_request(request).await
     }
 
-    async fn send(&mut self, request_frame: &RequestFrame) -> Result<Response, ()> {
-        self.conn.write_frame(request_frame).await.map_err(|_| ())?;
+    async fn send_request(&mut self, request: Request) -> Result<Response, ()> {
+        let request_frame = RequestFrame::try_from(request).map_err(|_| ())?;
+        self.conn
+            .write_frame(&request_frame)
+            .await
+            .map_err(|_| ())?;
         match self
             .conn
             .read_frame::<ResponseFrame>()
