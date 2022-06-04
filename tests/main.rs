@@ -62,7 +62,10 @@ async fn test_setting_the_same_key_twice_fails() {
         resp,
         Response::new(
             Status::Ok,
-            ResponseBody::Get(Some(ResponseBodyGet { key: key.clone(), value: value.clone() }))
+            ResponseBody::Get(Some(ResponseBodyGet {
+                key: key.clone(),
+                value: value.clone()
+            }))
         )
     );
 

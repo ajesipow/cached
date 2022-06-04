@@ -16,8 +16,10 @@ impl Client {
 
     // TODO: error handling
     pub async fn get(&mut self, key: String) -> Result<Response, ()> {
+        // ⁄TODO build a request instead?
         let header = RequestHeader::new(OpCode::Get, Some(key.as_str()), None);
         let request_frame = RequestFrame::new(header, Some(key), None);
+        // TODO put this in a dedicated method
         self.conn
             .write_frame(&request_frame)
             .await

@@ -127,8 +127,11 @@ fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String, FrameError> {
 
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
-// TODO: newtype idiom?
-pub struct RequestHeader {
+pub struct RequestHeader(RequestHeaderInner);
+
+#[derive(Debug, Copy, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
+struct RequestHeaderInner {
     pub op_code: OpCode,
     /// Can be ignored
     pub blank: u8,
@@ -140,33 +143,37 @@ impl RequestHeader {
     pub fn new(op_code: OpCode, key: Option<&str>, value: Option<&str>) -> Self {
         let value_length = value.map_or(0, |s| s.len() as u32);
         let key_length = key.map_or(0, |s| s.len() as u8);
-        Self {
+        Self(RequestHeaderInner {
             op_code,
             blank: 0,
             // TODO key must not be longer than u8
             key_length,
             // TODO value must not be longer than u32
             total_frame_length: HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length,
-        }
+        })
+    }
+
+    pub fn get_opcode(&self) -> &OpCode {
+        &self.0.op_code
     }
 }
 
 impl Header for RequestHeader {
     fn get_op_code(&self) -> OpCode {
-        self.op_code
+        self.0.op_code
     }
 
     fn get_key_length(&self) -> u8 {
-        self.key_length
+        self.0.key_length
     }
 
     // TODO rename
     fn get_status_or_blank(&self) -> u8 {
-        self.blank
+        self.0.blank
     }
 
     fn get_total_frame_length(&self) -> u32 {
-        self.total_frame_length
+        self.0.total_frame_length
     }
 }
 
@@ -222,12 +229,12 @@ impl TryFrom<Bytes> for RequestHeader {
         let key_length = value.get_u8();
         let total_frame_length = value.get_u32();
 
-        Ok(Self {
+        Ok(Self(RequestHeaderInner {
             op_code,
             key_length,
             blank,
             total_frame_length,
-        })
+        }))
     }
 }
 

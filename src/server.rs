@@ -57,7 +57,6 @@ impl Server {
 
 async fn read_request(conn: &mut Connection) -> Result<Option<Request>, ()> {
     let frame = conn.read_frame::<RequestFrame>().await;
-    println!("Frame: {:?}", frame);
     match frame {
         // TODO proper error handling
         Ok(maybe_frame) => maybe_frame

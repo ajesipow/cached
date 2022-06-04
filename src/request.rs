@@ -13,7 +13,7 @@ impl TryFrom<RequestFrame> for Request {
     type Error = String;
 
     fn try_from(frame: RequestFrame) -> Result<Self, Self::Error> {
-        match frame.header.op_code {
+        match frame.header.get_opcode() {
             OpCode::Set => Ok(Request::Set {
                 key: frame
                     .key
