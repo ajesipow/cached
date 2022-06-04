@@ -86,7 +86,7 @@ mod test {
         #[case] expected_request: Request,
     ) {
         let req_frame = RequestFrame {
-            header: RequestHeader::new(op_code, key.as_deref(), value.as_deref()),
+            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref()).unwrap(),
             key,
             value,
         };
@@ -131,7 +131,7 @@ mod test {
         #[case] value: Option<String>,
     ) {
         let req_frame = RequestFrame {
-            header: RequestHeader::new(op_code, key.as_deref(), value.as_deref()),
+            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref()).unwrap(),
             key,
             value,
         };

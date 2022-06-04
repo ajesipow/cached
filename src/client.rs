@@ -17,7 +17,8 @@ impl Client {
     // TODO: error handling
     pub async fn get(&mut self, key: String) -> Result<Response, ()> {
         // ⁄TODO build a request instead?
-        let header = RequestHeader::new(OpCode::Get, Some(key.as_str()), None);
+        // ⁄TODO Error handling
+        let header = RequestHeader::parse(OpCode::Get, Some(key.as_str()), None).map_err(|_| ())?;
         let request_frame = RequestFrame::new(header, Some(key), None);
         // TODO put this in a dedicated method
         self.conn
@@ -36,7 +37,8 @@ impl Client {
     }
 
     pub async fn set(&mut self, key: String, value: String) -> Result<Response, ()> {
-        let header = RequestHeader::new(OpCode::Set, Some(key.as_str()), Some(value.as_str()));
+        let header = RequestHeader::parse(OpCode::Set, Some(key.as_str()), Some(value.as_str()))
+            .map_err(|_| ())?;
         let request_frame = RequestFrame::new(header, Some(key), Some(value));
         self.conn
             .write_frame(&request_frame)
@@ -54,7 +56,8 @@ impl Client {
     }
 
     pub async fn delete(&mut self, key: String) -> Result<Response, ()> {
-        let header = RequestHeader::new(OpCode::Delete, Some(key.as_str()), None);
+        let header =
+            RequestHeader::parse(OpCode::Delete, Some(key.as_str()), None).map_err(|_| ())?;
         let request_frame = RequestFrame::new(header, Some(key), None);
         self.conn
             .write_frame(&request_frame)
@@ -72,7 +75,7 @@ impl Client {
     }
 
     pub async fn flush(&mut self) -> Result<Response, ()> {
-        let header = RequestHeader::new(OpCode::Flush, None, None);
+        let header = RequestHeader::parse(OpCode::Flush, None, None).map_err(|_| ())?;
         let request_frame = RequestFrame::new(header, None, None);
         self.conn
             .write_frame(&request_frame)
