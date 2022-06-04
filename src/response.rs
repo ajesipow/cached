@@ -46,12 +46,12 @@ impl TryFrom<ResponseFrame> for Response {
     type Error = String;
 
     fn try_from(frame: ResponseFrame) -> Result<Response, Self::Error> {
-        let body = match frame.header.op_code {
+        let body = match frame.header.get_opcode() {
             OpCode::Get => {
                 let body = if let (Some(key), Some(value)) = (frame.key, frame.value) {
                     Some(ResponseBodyGet { key, value })
                 } else {
-                    if frame.header.status == Status::Ok {
+                    if frame.header.get_status() == &Status::Ok {
                         return Err(
                             "Expected key and value, but one or both are missing.".to_string()
                         );
@@ -80,7 +80,7 @@ impl TryFrom<ResponseFrame> for Response {
             }
         };
         Ok(Self {
-            status: frame.header.status,
+            status: *frame.header.get_status(),
             body,
         })
     }

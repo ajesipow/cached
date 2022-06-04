@@ -178,7 +178,10 @@ impl Header for RequestHeader {
 }
 
 #[derive(Debug)]
-pub struct ResponseHeader {
+pub struct ResponseHeader(ResponseHeaderInner);
+
+#[derive(Debug)]
+struct ResponseHeaderInner {
     pub op_code: OpCode,
     pub status: Status,
     pub key_length: u8,
@@ -189,31 +192,39 @@ impl ResponseHeader {
     pub fn new(op_code: OpCode, status: Status, key: Option<&str>, value: Option<&str>) -> Self {
         let value_length = value.map_or(0, |s| s.len() as u32);
         let key_length = key.map_or(0, |s| s.len() as u8);
-        Self {
+        Self(ResponseHeaderInner {
             op_code,
             status,
             // TODO key must not be longer than u8
             key_length,
             // TODO value must not be longer than u32
             total_frame_length: HEADER_SIZE_BYTES as u32 + key_length as u32 + value_length,
-        }
+        })
+    }
+
+    pub fn get_opcode(&self) -> &OpCode {
+        &self.0.op_code
+    }
+
+    pub fn get_status(&self) -> &Status {
+        &self.0.status
     }
 }
 
 impl Header for ResponseHeader {
     fn get_op_code(&self) -> OpCode {
-        self.op_code
+        self.0.op_code
     }
     fn get_key_length(&self) -> u8 {
-        self.key_length
+        self.0.key_length
     }
 
     fn get_status_or_blank(&self) -> u8 {
-        self.status as u8
+        self.0.status as u8
     }
 
     fn get_total_frame_length(&self) -> u32 {
-        self.total_frame_length
+        self.0.total_frame_length
     }
 }
 
@@ -250,12 +261,12 @@ impl TryFrom<Bytes> for ResponseHeader {
         let key_length = value.get_u8();
         let total_frame_length = value.get_u32();
 
-        Ok(Self {
+        Ok(Self(ResponseHeaderInner {
             op_code,
             status,
             key_length,
             total_frame_length,
-        })
+        }))
     }
 }
 
