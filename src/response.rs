@@ -1,4 +1,4 @@
-use crate::error::{Error, Parse};
+use crate::error::{Error, Parse, Result};
 use crate::{Frame, OpCode, ResponseFrame, ResponseHeader, Status};
 
 #[derive(Debug, Eq, PartialEq)]
@@ -29,7 +29,7 @@ pub struct ResponseBodyGet {
 
 impl TryFrom<Response> for ResponseFrame {
     type Error = Error;
-    fn try_from(resp: Response) -> Result<Self, Self::Error> {
+    fn try_from(resp: Response) -> Result<Self> {
         let (op_code, key, value) = match resp.body {
             ResponseBody::Get(get_body) => {
                 let (k, v) = get_body.map_or((None, None), |b| (Some(b.key), Some(b.value)));
@@ -47,7 +47,7 @@ impl TryFrom<Response> for ResponseFrame {
 impl TryFrom<ResponseFrame> for Response {
     type Error = Error;
 
-    fn try_from(frame: ResponseFrame) -> Result<Response, Self::Error> {
+    fn try_from(frame: ResponseFrame) -> Result<Response> {
         let body = match frame.header.get_opcode() {
             OpCode::Get => {
                 // TODO beautify
@@ -55,7 +55,7 @@ impl TryFrom<ResponseFrame> for Response {
                     (Some(key), Some(value)) => Ok(Some(ResponseBodyGet { key, value })),
                     (Some(_), None) => Err(Error::Parse(Parse::ValueMissing)),
                     (None, Some(_)) => Err(Error::Parse(Parse::KeyMissing)),
-                    (None, None) => Err(Error::Parse(Parse::KeyMissing)),
+                    (None, None) => Err(Error::Parse(Parse::KeyAndValueMissing)),
                 };
                 let body = match body_result {
                     Ok(Some(response_body)) => Some(response_body),
@@ -70,30 +70,15 @@ impl TryFrom<ResponseFrame> for Response {
                 ResponseBody::Get(body)
             }
             OpCode::Set => {
-                if frame.key.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedKey));
-                }
-                if frame.value.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedValue));
-                }
+                ensure_key_and_value_are_none(frame.key, frame.value)?;
                 ResponseBody::Set
             }
             OpCode::Delete => {
-                if frame.key.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedKey));
-                }
-                if frame.value.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedValue));
-                }
+                ensure_key_and_value_are_none(frame.key, frame.value)?;
                 ResponseBody::Delete
             }
             OpCode::Flush => {
-                if frame.key.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedKey));
-                }
-                if frame.value.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedValue));
-                }
+                ensure_key_and_value_are_none(frame.key, frame.value)?;
                 ResponseBody::Flush
             }
         };
@@ -101,6 +86,16 @@ impl TryFrom<ResponseFrame> for Response {
             status: *frame.header.get_status(),
             body,
         })
+    }
+}
+
+fn ensure_key_and_value_are_none(key: Option<String>, value: Option<String>) -> Result<()> {
+    if key.is_some() {
+        Err(Error::Parse(Parse::UnexpectedKey))
+    } else if value.is_some() {
+        Err(Error::Parse(Parse::UnexpectedValue))
+    } else {
+        Ok(())
     }
 }
 

@@ -13,6 +13,7 @@ pub enum Error {
 pub enum Parse {
     KeyMissing,
     ValueMissing,
+    KeyAndValueMissing,
     UnexpectedKey,
     UnexpectedValue,
 }
