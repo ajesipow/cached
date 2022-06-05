@@ -16,7 +16,6 @@ impl Client {
         Self { conn }
     }
 
-    // TODO: error handling
     pub async fn get(&mut self, key: String) -> Result<Response> {
         let request = Request::Get(key);
         self.send_request(request).await

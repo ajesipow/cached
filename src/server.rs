@@ -58,7 +58,6 @@ impl Server {
 async fn read_request(conn: &mut Connection) -> crate::error::Result<Option<Request>> {
     let frame = conn.read_frame::<RequestFrame>().await;
     match frame {
-        // TODO proper error handling
         Ok(maybe_frame) => maybe_frame.map(Request::try_from).transpose(),
         Err(e) => Err(e),
     }
@@ -66,7 +65,6 @@ async fn read_request(conn: &mut Connection) -> crate::error::Result<Option<Requ
 
 async fn write_response(conn: &mut Connection, resp: Response) -> crate::error::Result<()> {
     let frame = ResponseFrame::try_from(resp)?;
-    // TODO proper error handling
     conn.write_frame(&frame).await
 }
 
