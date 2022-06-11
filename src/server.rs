@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex};
 use tokio::io;
 use tokio::net::{TcpListener, ToSocketAddrs};
 
+use tracing::instrument;
+
 #[derive(Debug)]
 pub struct Server {
     listener: TcpListener,
@@ -55,6 +57,7 @@ impl Server {
     }
 }
 
+#[instrument(skip(conn))]
 async fn read_request(conn: &mut Connection) -> crate::error::Result<Option<Request>> {
     let frame = conn.read_frame::<RequestFrame>().await;
     match frame {
@@ -63,6 +66,7 @@ async fn read_request(conn: &mut Connection) -> crate::error::Result<Option<Requ
     }
 }
 
+#[instrument(skip(conn))]
 async fn write_response(conn: &mut Connection, resp: Response) -> crate::error::Result<()> {
     let frame = ResponseFrame::try_from(resp)?;
     conn.write_frame(&frame).await
