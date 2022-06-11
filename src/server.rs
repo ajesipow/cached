@@ -1,12 +1,14 @@
 use crate::request::Request;
 use crate::response::{ResponseBody, ResponseBodyGet};
-use crate::{Connection, RequestFrame, Response, ResponseFrame, Status};
+use crate::Response;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::io;
 use tokio::net::{TcpListener, ToSocketAddrs};
 
+use crate::connection::Connection;
+use crate::frame::{RequestFrame, ResponseFrame, Status};
 use tracing::instrument;
 
 #[derive(Debug)]

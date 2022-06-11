@@ -15,8 +15,8 @@ mod response;
 mod server;
 
 pub use client::Client;
-pub use connection::*;
-pub use frame::*;
+pub use client::Pool;
+pub use frame::Status;
 pub use request::Request;
 pub use response::Response;
 pub use response::ResponseBody;

@@ -1,6 +1,5 @@
 use crate::error::{ConnectionError, Error, FrameError, Result};
-use crate::frame::Frame;
-use crate::Header;
+use crate::frame::{Frame, Header};
 use bytes::{Buf, BytesMut};
 use std::fmt::Debug;
 use std::io::Cursor;

@@ -1,4 +1,4 @@
-use cached::{Client, Response, ResponseBody, ResponseBodyGet, Server, Status};
+use cached::{Client, Pool, Response, ResponseBody, ResponseBodyGet, Server, Status};
 use std::net::SocketAddr;
 
 async fn run_test_server() -> SocketAddr {
@@ -14,7 +14,8 @@ async fn run_test_server() -> SocketAddr {
 #[tokio::test]
 async fn test_getting_a_non_existing_key_fails() {
     let address = run_test_server().await;
-    let mut client = Client::new(address).await;
+    let pool = Pool::new(address).await;
+    let client = Client::new(pool);
 
     let key = "ABC".to_string();
     let resp = client.get(key.clone()).await.unwrap();
@@ -24,7 +25,8 @@ async fn test_getting_a_non_existing_key_fails() {
 #[tokio::test]
 async fn test_setting_a_key_works() {
     let address = run_test_server().await;
-    let mut client = Client::new(address).await;
+    let pool = Pool::new(address).await;
+    let client = Client::new(pool);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -47,7 +49,8 @@ async fn test_setting_a_key_works() {
 #[tokio::test]
 async fn test_setting_the_same_key_twice_fails() {
     let address = run_test_server().await;
-    let mut client = Client::new(address).await;
+    let pool = Pool::new(address).await;
+    let client = Client::new(pool);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -76,7 +79,8 @@ async fn test_setting_the_same_key_twice_fails() {
 #[tokio::test]
 async fn test_deleting_a_key_works() {
     let address = run_test_server().await;
-    let mut client = Client::new(address).await;
+    let pool = Pool::new(address).await;
+    let client = Client::new(pool);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -108,7 +112,8 @@ async fn test_deleting_a_key_works() {
 #[tokio::test]
 async fn test_deleting_a_non_existing_key_fails() {
     let address = run_test_server().await;
-    let mut client = Client::new(address).await;
+    let pool = Pool::new(address).await;
+    let client = Client::new(pool);
 
     let key = "ABC".to_string();
 
@@ -119,7 +124,8 @@ async fn test_deleting_a_non_existing_key_fails() {
 #[tokio::test]
 async fn test_flushing_works() {
     let address = run_test_server().await;
-    let mut client = Client::new(address).await;
+    let pool = Pool::new(address).await;
+    let client = Client::new(pool);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();

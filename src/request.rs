@@ -1,5 +1,5 @@
 use crate::error::{Error, Parse};
-use crate::{Frame, OpCode, RequestFrame, RequestHeader};
+use crate::frame::{Frame, OpCode, RequestFrame, RequestHeader};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -76,8 +76,8 @@ impl TryFrom<RequestFrame> for Request {
 
 #[cfg(test)]
 mod test {
-    use crate::OpCode;
-    use crate::{Request, RequestFrame, RequestHeader};
+    use super::*;
+    use crate::Request;
     use rstest::rstest;
 
     #[rstest]

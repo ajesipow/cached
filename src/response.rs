@@ -1,5 +1,5 @@
 use crate::error::{Error, Parse, Result};
-use crate::{Frame, OpCode, ResponseFrame, ResponseHeader, Status};
+use crate::frame::{Frame, OpCode, ResponseFrame, ResponseHeader, Status};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Response {
@@ -101,9 +101,8 @@ fn ensure_key_and_value_are_none(key: Option<String>, value: Option<String>) -> 
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        OpCode, Response, ResponseBody, ResponseBodyGet, ResponseFrame, ResponseHeader, Status,
-    };
+    use super::*;
+    use crate::{Response, ResponseBody, ResponseBodyGet};
     use rstest::rstest;
 
     #[rstest]
