@@ -76,18 +76,15 @@ impl Client {
 
     async fn handle_request(&self, request: Request) -> Result<Response> {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        // TODO error handling
-        let _ = &self
-            .conn
+        self.conn
             .send(RequestResponder {
                 request,
                 responder: tx,
             })
             .await
-            .unwrap();
-        // TODO error handling
+            .map_err(|_| Error::Connection(ConnectionError::Send))?;
         rx.await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?
+            .map_err(|_| Error::Connection(ConnectionError::Receive))?
     }
 }
 

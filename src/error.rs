@@ -34,4 +34,6 @@ pub enum ConnectionError {
     Read(String),
     ResetByPeer,
     Write,
+    Send,
+    Receive,
 }
