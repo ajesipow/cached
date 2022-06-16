@@ -16,19 +16,20 @@ pub struct RequestResponder {
 }
 
 #[derive(Debug, Clone)]
-pub struct Pool {
+pub struct ClientConnection {
     sender: mpsc::Sender<RequestResponder>,
 }
 
-impl Pool {
-    // TODO error handling
+impl ClientConnection {
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let (tx, mut rx) = mpsc::channel::<RequestResponder>(32);
-        let mut client = ConnectionHandler::new(addr).await;
+        let mut connection_handler = ConnectionHandler::new(addr).await;
         spawn(async move {
             while let Some(request_responder) = rx.recv().await {
                 let responder = request_responder.responder;
-                let res = client.send_request(request_responder.request).await;
+                let res = connection_handler
+                    .send_request(request_responder.request)
+                    .await;
                 let _ = responder.send(res);
             }
         });
@@ -46,7 +47,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(pool: Pool) -> Self {
+    pub fn new(pool: ClientConnection) -> Self {
         Self { conn: pool.get() }
     }
 
@@ -94,7 +95,7 @@ pub(crate) struct ConnectionHandler {
 }
 
 impl ConnectionHandler {
-    /// Creates a new client and panics if it cannot connect.
+    /// Creates a new connection and panics if it cannot connect.
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let stream = TcpStream::connect(addr).await.unwrap();
         let conn = Connection::new(stream);

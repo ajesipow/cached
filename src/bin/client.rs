@@ -1,4 +1,4 @@
-use cached::{Client, Pool};
+use cached::{Client, ClientConnection};
 use tokio::join;
 use tracing::info;
 use tracing::subscriber::set_global_default;
@@ -16,7 +16,7 @@ async fn main() {
         .with(formatting_layer);
     set_global_default(subscriber).expect("Failed to set subscriber");
 
-    let pool = Pool::new("127.0.0.1:7878").await;
+    let pool = ClientConnection::new("127.0.0.1:7878").await;
     let client = Client::new(pool);
 
     let key = "Spme key!".to_string();
