@@ -39,11 +39,11 @@ impl Connection {
                 .await
                 .map_err(|e| Error::Connection(ConnectionError::Read(e.to_string())))?
             {
-                if self.buffer.is_empty() {
-                    return Ok(None);
+                return if self.buffer.is_empty() {
+                    Ok(None)
                 } else {
-                    return Err(Error::Connection(ConnectionError::ResetByPeer));
-                }
+                    Err(Error::Connection(ConnectionError::ResetByPeer))
+                };
             }
         }
     }
