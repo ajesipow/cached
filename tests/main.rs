@@ -153,3 +153,44 @@ async fn test_flushing_works() {
     let resp = client.get(key.clone()).await.unwrap();
     assert_eq!(resp.status, Status::KeyNotFound);
 }
+
+#[tokio::test]
+async fn test_setting_and_getting_keys_concurrently_works() {
+    let address = run_test_server().await;
+    let pool = Pool::new(address).await;
+    let client = Client::new(pool);
+
+    let key_1 = "ABC".to_string();
+    let key_2 = "DEF".to_string();
+    let value_1 = "1234".to_string();
+    let value_2 = "5678".to_string();
+    let (resp_1, resp_2) = tokio::join!(
+        client.set(key_1.clone(), value_1.clone()),
+        client.set(key_2.clone(), value_2.clone())
+    );
+    assert_eq!(resp_1.unwrap().status, Status::Ok);
+    assert_eq!(resp_2.unwrap().status, Status::Ok);
+
+    let (resp_1, resp_2) = tokio::join!(client.get(key_1.clone()), client.get(key_2.clone()));
+    assert_eq!(
+        resp_1.unwrap(),
+        Response::new(
+            Status::Ok,
+            ResponseBody::Get(Some(ResponseBodyGet {
+                key: key_1,
+                value: value_1
+            }))
+        )
+    );
+
+    assert_eq!(
+        resp_2.unwrap(),
+        Response::new(
+            Status::Ok,
+            ResponseBody::Get(Some(ResponseBodyGet {
+                key: key_2,
+                value: value_2
+            }))
+        )
+    );
+}

@@ -1,4 +1,5 @@
 use cached::{Client, Pool};
+use tokio::join;
 use tracing::info;
 use tracing::subscriber::set_global_default;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -46,6 +47,6 @@ async fn main() {
     let resp = client.flush().await;
     info!("Got response: {:?}", resp);
 
-    let resp = client.get(key.clone()).await;
-    info!("Got response: {:?}", resp);
+    let res = join!(client.get(key.clone()), client.get(key.clone()));
+    info!("Got join response: {:?}", res);
 }
