@@ -1,4 +1,5 @@
 use cached::Server;
+use tokio::signal;
 use tracing::subscriber::set_global_default;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_subscriber::layer::SubscriberExt;
@@ -14,10 +15,14 @@ async fn main() {
         .with(formatting_layer);
     set_global_default(subscriber).expect("Could not set subscriber");
 
-    Server::build("127.0.0.1:7878")
-        .await
-        .unwrap()
-        .serve()
-        .await
-        .unwrap();
+    let server = Server::build("127.0.0.1:7878").await.unwrap();
+    tokio::spawn(server.serve());
+
+    match signal::ctrl_c().await {
+        Ok(()) => {}
+        Err(err) => {
+            eprintln!("Unable to listen for shutdown signal: {}", err);
+            // we also shut down in case of error
+        }
+    }
 }

@@ -11,11 +11,13 @@ use crate::connection::Connection;
 use crate::frame::{RequestFrame, ResponseFrame, Status};
 use tracing::instrument;
 
+type Db = Arc<DashMap<String, String>>;
+
 #[derive(Debug)]
 pub struct Server {
     listener: TcpListener,
     port: u16,
-    db: Arc<DashMap<String, String>>,
+    db: Db,
 }
 
 impl Server {
@@ -41,74 +43,88 @@ impl Server {
     pub async fn serve(self) -> Result<(), io::Error> {
         loop {
             let (stream, _) = self.listener.accept().await?;
-            let mut connection = Connection::new(stream);
-            let db = self.db.clone();
+            let mut handler = Handler {
+                conn: Connection::new(stream),
+                db: self.db.clone(),
+            };
             tokio::spawn(async move {
-                loop {
-                    let request = read_request(&mut connection).await.unwrap();
-                    if let Some(r) = request {
-                        let response = handle_request(r, db.clone());
-                        write_response(&mut connection, response).await.unwrap();
-                    } else {
-                        break;
-                    }
-                }
+                handler.run().await;
             });
         }
     }
 }
 
-#[instrument(skip(conn))]
-async fn read_request(conn: &mut Connection) -> crate::error::Result<Option<Request>> {
-    let frame = conn.read_frame::<RequestFrame>().await;
-    match frame {
-        Ok(maybe_frame) => maybe_frame.map(Request::try_from).transpose(),
-        Err(e) => Err(e),
-    }
+struct Handler {
+    conn: Connection,
+    db: Db,
 }
 
-#[instrument(skip(conn))]
-async fn write_response(conn: &mut Connection, resp: Response) -> crate::error::Result<()> {
-    let frame = ResponseFrame::try_from(resp)?;
-    conn.write_frame(&frame).await
-}
-
-fn handle_request(req: Request, db: Arc<DashMap<String, String>>) -> Response {
-    match req {
-        Request::Get(key) => {
-            let response = match db.get(&key) {
-                Some(val) => Response::new(
-                    Status::Ok,
-                    ResponseBody::Get(Some(ResponseBodyGet {
-                        key,
-                        // TODO do we want to clone here? Maybe use bytes instead?
-                        value: val.to_string(),
-                    })),
-                ),
-                None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
-            };
-            response
-        }
-        Request::Set { key, value } => {
-            let response = if let Entry::Vacant(e) = db.entry(key) {
-                e.insert(value);
-                Response::new(Status::Ok, ResponseBody::Set)
+impl Handler {
+    async fn run(&mut self) {
+        loop {
+            let request = self.read_request().await.unwrap();
+            if let Some(r) = request {
+                let response = self.handle_request(r);
+                self.write_response(response).await.unwrap();
             } else {
-                Response::new(Status::KeyExists, ResponseBody::Set)
-            };
-            response
-        }
-        Request::Delete(key) => {
-            if !db.contains_key(&key) {
-                Response::new(Status::KeyNotFound, ResponseBody::Delete)
-            } else {
-                db.remove(&key);
-                Response::new(Status::Ok, ResponseBody::Delete)
+                break;
             }
         }
-        Request::Flush => {
-            db.clear();
-            Response::new(Status::Ok, ResponseBody::Flush)
+    }
+
+    #[instrument(skip(self))]
+    async fn read_request(&mut self) -> crate::error::Result<Option<Request>> {
+        let frame = self.conn.read_frame::<RequestFrame>().await;
+        match frame {
+            Ok(maybe_frame) => maybe_frame.map(Request::try_from).transpose(),
+            Err(e) => Err(e),
+        }
+    }
+
+    #[instrument(skip(self))]
+    async fn write_response(&mut self, resp: Response) -> crate::error::Result<()> {
+        let frame = ResponseFrame::try_from(resp)?;
+        self.conn.write_frame(&frame).await
+    }
+
+    #[instrument(skip(self))]
+    fn handle_request(&self, req: Request) -> Response {
+        match req {
+            Request::Get(key) => {
+                let response = match self.db.get(&key) {
+                    Some(val) => Response::new(
+                        Status::Ok,
+                        ResponseBody::Get(Some(ResponseBodyGet {
+                            key,
+                            // TODO do we want to clone here? Maybe use bytes instead?
+                            value: val.to_string(),
+                        })),
+                    ),
+                    None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
+                };
+                response
+            }
+            Request::Set { key, value } => {
+                let response = if let Entry::Vacant(e) = self.db.entry(key) {
+                    e.insert(value);
+                    Response::new(Status::Ok, ResponseBody::Set)
+                } else {
+                    Response::new(Status::KeyExists, ResponseBody::Set)
+                };
+                response
+            }
+            Request::Delete(key) => {
+                if !self.db.contains_key(&key) {
+                    Response::new(Status::KeyNotFound, ResponseBody::Delete)
+                } else {
+                    self.db.remove(&key);
+                    Response::new(Status::Ok, ResponseBody::Delete)
+                }
+            }
+            Request::Flush => {
+                self.db.clear();
+                Response::new(Status::Ok, ResponseBody::Flush)
+            }
         }
     }
 }
