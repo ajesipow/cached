@@ -16,6 +16,7 @@ mod server;
 
 pub use client::Client;
 pub use client::ClientConnection;
+pub use error::Error;
 pub use frame::Status;
 pub use request::Request;
 pub use response::Response;

@@ -1,9 +1,9 @@
 use crate::request::Request;
 use crate::response::{ResponseBody, ResponseBodyGet};
 use crate::Response;
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use dashmap::mapref::entry::Entry;
+use dashmap::DashMap;
+use std::sync::Arc;
 use tokio::io;
 use tokio::net::{TcpListener, ToSocketAddrs};
 
@@ -15,8 +15,7 @@ use tracing::instrument;
 pub struct Server {
     listener: TcpListener,
     port: u16,
-    // TODO use sender receiver model
-    db: Arc<Mutex<HashMap<String, String>>>,
+    db: Arc<DashMap<String, String>>,
 }
 
 impl Server {
@@ -35,7 +34,7 @@ impl Server {
         Ok(Self {
             listener,
             port,
-            db: Arc::new(Mutex::new(HashMap::new())),
+            db: Arc::new(DashMap::with_shard_amount(128)),
         })
     }
 
@@ -74,11 +73,10 @@ async fn write_response(conn: &mut Connection, resp: Response) -> crate::error::
     conn.write_frame(&frame).await
 }
 
-fn handle_request(req: Request, db: Arc<Mutex<HashMap<String, String>>>) -> Response {
+fn handle_request(req: Request, db: Arc<DashMap<String, String>>) -> Response {
     match req {
         Request::Get(key) => {
-            let state = db.lock().unwrap();
-            match state.get(&key) {
+            let response = match db.get(&key) {
                 Some(val) => Response::new(
                     Status::Ok,
                     ResponseBody::Get(Some(ResponseBodyGet {
@@ -88,29 +86,28 @@ fn handle_request(req: Request, db: Arc<Mutex<HashMap<String, String>>>) -> Resp
                     })),
                 ),
                 None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
-            }
+            };
+            response
         }
         Request::Set { key, value } => {
-            let mut state = db.lock().unwrap();
-            if let Entry::Vacant(e) = state.entry(key) {
+            let response = if let Entry::Vacant(e) = db.entry(key) {
                 e.insert(value);
                 Response::new(Status::Ok, ResponseBody::Set)
             } else {
                 Response::new(Status::KeyExists, ResponseBody::Set)
-            }
+            };
+            response
         }
         Request::Delete(key) => {
-            let mut state = db.lock().unwrap();
-            if !state.contains_key(&key) {
+            if !db.contains_key(&key) {
                 Response::new(Status::KeyNotFound, ResponseBody::Delete)
             } else {
-                state.remove(&key);
+                db.remove(&key);
                 Response::new(Status::Ok, ResponseBody::Delete)
             }
         }
         Request::Flush => {
-            let mut state = db.lock().unwrap();
-            state.clear();
+            db.clear();
             Response::new(Status::Ok, ResponseBody::Flush)
         }
     }
