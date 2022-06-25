@@ -13,6 +13,7 @@ mod frame;
 mod request;
 mod response;
 mod server;
+mod shutdown;
 
 pub use client::Client;
 pub use client::ClientConnection;

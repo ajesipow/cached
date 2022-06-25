@@ -16,13 +16,5 @@ async fn main() {
     set_global_default(subscriber).expect("Could not set subscriber");
 
     let server = Server::build("127.0.0.1:7878").await.unwrap();
-    tokio::spawn(server.serve());
-
-    match signal::ctrl_c().await {
-        Ok(()) => {}
-        Err(err) => {
-            eprintln!("Unable to listen for shutdown signal: {}", err);
-            // we also shut down in case of error
-        }
-    }
+    server.run(signal::ctrl_c()).await;
 }

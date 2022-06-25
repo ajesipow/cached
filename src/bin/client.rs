@@ -1,4 +1,5 @@
 use cached::{Client, ClientConnection};
+use std::time::Duration;
 use tokio::join;
 use tracing::info;
 use tracing::subscriber::set_global_default;
@@ -22,6 +23,8 @@ async fn main() {
     let key = "Spme key!".to_string();
     let resp = client.get(key.clone()).await;
     info!("Got response: {:?}", resp);
+
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
     let resp = client
         .set(key.clone(), "My own private value".to_string())

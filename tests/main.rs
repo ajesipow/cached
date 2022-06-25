@@ -5,7 +5,7 @@ async fn run_test_server() -> SocketAddr {
     let host = "127.0.0.1";
     let server = Server::build(format!("{host}:0")).await.unwrap();
     let server_port = server.port();
-    tokio::spawn(server.serve());
+    tokio::spawn(server.run(tokio::signal::ctrl_c()));
     format!("{host}:{server_port}")
         .parse()
         .expect("Could not parse address as SocketAddr")
