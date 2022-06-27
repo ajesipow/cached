@@ -12,7 +12,7 @@ use tokio::sync::{broadcast, mpsc};
 use crate::connection::Connection;
 use crate::frame::{RequestFrame, ResponseFrame, Status};
 use crate::shutdown::Shutdown;
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 type Db = Arc<DashMap<String, String>>;
 
@@ -103,7 +103,10 @@ impl Handler {
         while !self.shutdown.is_shutdown() {
             let request = tokio::select! {
                 res = read_request(&mut self.conn) => res.unwrap(),
-                _ = self.shutdown.recv() => return
+                _ = self.shutdown.recv() => {
+                    debug!("Received shutdown signal.");
+                    return
+                }
             };
             if let Some(r) = request {
                 let response = self.handle_request(r);
