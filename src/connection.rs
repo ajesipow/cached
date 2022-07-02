@@ -24,6 +24,17 @@ impl Connection {
     }
 
     #[instrument(skip(self))]
+    pub async fn send_request(&mut self, request: Request) -> Result<Response> {
+        self.write_request(request).await?;
+        match self.read_response().await? {
+            Some(response) => Ok(response),
+            None => Err(Error::Connection(ConnectionError::Read(
+                "Could not read response".to_string(),
+            ))),
+        }
+    }
+
+    #[instrument(skip(self))]
     pub async fn read_request(&mut self) -> Result<Option<Request>> {
         let frame = self.read_frame::<RequestFrame>().await;
         match frame {

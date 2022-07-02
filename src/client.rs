@@ -21,15 +21,15 @@ pub struct ClientConnection {
 }
 
 impl ClientConnection {
+    /// Panics if cannot connect to addr
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let (tx, mut rx) = mpsc::channel::<RequestResponder>(32);
-        let mut connection_handler = ConnectionHandler::new(addr).await;
+        let stream = TcpStream::connect(addr).await.unwrap();
+        let mut conn = Connection::new(stream);
         spawn(async move {
             while let Some(request_responder) = rx.recv().await {
                 let responder = request_responder.responder;
-                let res = connection_handler
-                    .send_request(request_responder.request)
-                    .await;
+                let res = conn.send_request(request_responder.request).await;
                 let _ = responder.send(res);
             }
         });
@@ -47,8 +47,8 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(pool: ClientConnection) -> Self {
-        Self { conn: pool.get() }
+    pub fn new(conn: ClientConnection) -> Self {
+        Self { conn: conn.get() }
     }
 
     #[instrument(skip(self))]
@@ -86,30 +86,5 @@ impl Client {
             .map_err(|_| Error::Connection(ConnectionError::Send))?;
         rx.await
             .map_err(|_| Error::Connection(ConnectionError::Receive))?
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct ConnectionHandler {
-    conn: Connection,
-}
-
-impl ConnectionHandler {
-    /// Creates a new connection and panics if it cannot connect.
-    pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
-        let stream = TcpStream::connect(addr).await.unwrap();
-        let conn = Connection::new(stream);
-        Self { conn }
-    }
-
-    #[instrument(skip(self))]
-    pub async fn send_request(&mut self, request: Request) -> Result<Response> {
-        self.conn.write_request(request).await?;
-        match self.conn.read_response().await? {
-            Some(response) => Ok(response),
-            None => Err(Error::Connection(ConnectionError::Read(
-                "Could not read response".to_string(),
-            ))),
-        }
     }
 }
