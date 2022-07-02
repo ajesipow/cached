@@ -1,5 +1,7 @@
 use crate::error::{Error, Parse, Result};
-use crate::frame::{Frame, OpCode, ResponseFrame, ResponseHeader, Status};
+use crate::frame::{Frame, ResponseFrame};
+use crate::header::ResponseHeader;
+use crate::primitives::{OpCode, Status};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Response {

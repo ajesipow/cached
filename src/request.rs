@@ -1,5 +1,7 @@
 use crate::error::{Error, Parse};
-use crate::frame::{Frame, OpCode, RequestFrame, RequestHeader};
+use crate::frame::{Frame, RequestFrame};
+use crate::header::RequestHeader;
+use crate::primitives::OpCode;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]

@@ -1,6 +1,6 @@
 use crate::request::Request;
 use crate::response::{ResponseBody, ResponseBodyGet};
-use crate::Response;
+use crate::{Response, Status};
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use std::future::Future;
@@ -10,7 +10,7 @@ use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{broadcast, mpsc};
 
 use crate::connection::Connection;
-use crate::frame::{RequestFrame, ResponseFrame, Status};
+use crate::frame::{RequestFrame, ResponseFrame};
 use crate::shutdown::Shutdown;
 use tracing::{debug, error, info, instrument};
 
