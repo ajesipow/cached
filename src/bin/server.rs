@@ -15,6 +15,6 @@ async fn main() {
         .with(formatting_layer);
     set_global_default(subscriber).expect("Could not set subscriber");
 
-    let server = Server::build("127.0.0.1:7878").await.unwrap();
+    let server = Server::builder("127.0.0.1:7878").try_build().await.unwrap();
     server.run(signal::ctrl_c()).await;
 }

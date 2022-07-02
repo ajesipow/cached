@@ -38,4 +38,6 @@ pub enum ConnectionError {
     Receive,
     Accept,
     AcquireSemaphore,
+    Bind,
+    LocalAddr,
 }

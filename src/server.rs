@@ -5,14 +5,13 @@ use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use std::future::Future;
 use std::sync::Arc;
-use tokio::io;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{broadcast, mpsc, Semaphore};
 
 use crate::connection::Connection;
 use crate::error::ConnectionError;
 use crate::shutdown::Shutdown;
-use crate::Error;
+use crate::{error, Error};
 use tracing::{debug, error, info, instrument};
 
 type Db = Arc<DashMap<String, String>>;
@@ -28,31 +27,64 @@ pub struct Server {
     connection_limit: Arc<Semaphore>,
 }
 
-impl Server {
-    pub fn port(&self) -> u16 {
-        self.port
+#[derive(Debug)]
+pub struct ServerBuilder<A>
+where
+    A: ToSocketAddrs,
+{
+    socket_address: A,
+    max_connections: Option<usize>,
+    shard_amount: Option<usize>,
+}
+
+impl<A: ToSocketAddrs> ServerBuilder<A> {
+    pub fn new(addr: A) -> Self {
+        Self {
+            socket_address: addr,
+            max_connections: None,
+            shard_amount: None,
+        }
+    }
+
+    pub fn max_connections(mut self, max_connections: usize) -> Self {
+        self.max_connections = Some(max_connections);
+        self
+    }
+
+    pub fn shard_amount(mut self, shard_amount: usize) -> Self {
+        self.shard_amount = Some(shard_amount);
+        self
+    }
+
+    pub async fn try_build(self) -> error::Result<Server> {
+        let listener = TcpListener::bind(self.socket_address)
+            .await
+            .map_err(|_| Error::Connection(ConnectionError::Bind))?;
+        let port = listener
+            .local_addr()
+            .map_err(|_| Error::Connection(ConnectionError::LocalAddr))?
+            .port();
+        let (notify_shutdown, _) = broadcast::channel(1);
+        let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
+        Ok(Server {
+            listener,
+            port,
+            db: Arc::new(DashMap::with_shard_amount(self.shard_amount.unwrap_or(128))),
+            notify_shutdown,
+            shutdown_complete_tx,
+            shutdown_complete_rx,
+            connection_limit: Arc::new(Semaphore::new(self.max_connections.unwrap_or(250))),
+        })
     }
 }
 
 impl Server {
-    // TODO use config builder
-    pub async fn build<A>(addr: A) -> Result<Server, io::Error>
-    where
-        A: ToSocketAddrs,
-    {
-        let listener = TcpListener::bind(addr).await?;
-        let port = listener.local_addr()?.port();
-        let (notify_shutdown, _) = broadcast::channel(1);
-        let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
-        Ok(Self {
-            listener,
-            port,
-            db: Arc::new(DashMap::with_shard_amount(128)),
-            notify_shutdown,
-            shutdown_complete_tx,
-            shutdown_complete_rx,
-            connection_limit: Arc::new(Semaphore::new(1)),
-        })
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub fn builder<A: ToSocketAddrs>(addr: A) -> ServerBuilder<A> {
+        ServerBuilder::new(addr)
     }
 
     pub async fn run(mut self, shutdown: impl Future) {
