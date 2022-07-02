@@ -7,10 +7,12 @@ use std::future::Future;
 use std::sync::Arc;
 use tokio::io;
 use tokio::net::{TcpListener, ToSocketAddrs};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, Semaphore};
 
 use crate::connection::Connection;
+use crate::error::ConnectionError;
 use crate::shutdown::Shutdown;
+use crate::Error;
 use tracing::{debug, error, info, instrument};
 
 type Db = Arc<DashMap<String, String>>;
@@ -23,6 +25,7 @@ pub struct Server {
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
     shutdown_complete_rx: mpsc::Receiver<()>,
+    connection_limit: Arc<Semaphore>,
 }
 
 impl Server {
@@ -32,6 +35,7 @@ impl Server {
 }
 
 impl Server {
+    // TODO use config builder
     pub async fn build<A>(addr: A) -> Result<Server, io::Error>
     where
         A: ToSocketAddrs,
@@ -47,6 +51,7 @@ impl Server {
             notify_shutdown,
             shutdown_complete_tx,
             shutdown_complete_rx,
+            connection_limit: Arc::new(Semaphore::new(1)),
         })
     }
 
@@ -75,14 +80,25 @@ impl Server {
         let _ = shutdown_complete_rx.recv().await;
     }
 
-    async fn serve(&mut self) -> Result<(), io::Error> {
+    async fn serve(&mut self) -> crate::error::Result<()> {
         loop {
-            let (stream, _) = self.listener.accept().await?;
+            self.connection_limit
+                .acquire()
+                .await
+                .map_err(|_| Error::Connection(ConnectionError::AcquireSemaphore))?
+                .forget();
+
+            let (stream, _) = self
+                .listener
+                .accept()
+                .await
+                .map_err(|_| Error::Connection(ConnectionError::Accept))?;
             let mut handler = Handler {
                 conn: Connection::new(stream),
                 db: self.db.clone(),
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdown_complete: self.shutdown_complete_tx.clone(),
+                connection_limit: self.connection_limit.clone(),
             };
             tokio::spawn(async move {
                 handler.run().await;
@@ -96,6 +112,7 @@ struct Handler {
     db: Db,
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
+    connection_limit: Arc<Semaphore>,
 }
 
 impl Handler {
@@ -156,5 +173,12 @@ impl Handler {
                 Response::new(Status::Ok, ResponseBody::Flush)
             }
         }
+    }
+}
+
+impl Drop for Handler {
+    fn drop(&mut self) {
+        self.connection_limit.add_permits(1);
+        debug!("Added permit back to connection semaphore.");
     }
 }

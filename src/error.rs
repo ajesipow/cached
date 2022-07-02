@@ -36,4 +36,6 @@ pub enum ConnectionError {
     Write,
     Send,
     Receive,
+    Accept,
+    AcquireSemaphore,
 }
