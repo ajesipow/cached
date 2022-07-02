@@ -1,7 +1,8 @@
 use crate::connection::Connection;
 use crate::error::ConnectionError;
-pub use crate::error::{Error, Result};
-use crate::{Request, Response};
+use crate::error::{Error, Result};
+use crate::request::Request;
+use crate::response::Response;
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::spawn;
 use tokio::sync::mpsc;

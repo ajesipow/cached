@@ -1,6 +1,6 @@
+use crate::primitives::Status;
 use crate::request::Request;
-use crate::response::{ResponseBody, ResponseBodyGet};
-use crate::{Response, Status};
+use crate::response::{Response, ResponseBody, ResponseBodyGet};
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use std::future::Future;
