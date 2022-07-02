@@ -1,7 +1,6 @@
 use crate::connection::Connection;
 use crate::error::ConnectionError;
 pub use crate::error::{Error, Result};
-use crate::frame::{RequestFrame, ResponseFrame};
 use crate::{Request, Response};
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::spawn;
@@ -104,10 +103,9 @@ impl ConnectionHandler {
 
     #[instrument(skip(self))]
     pub async fn send_request(&mut self, request: Request) -> Result<Response> {
-        let request_frame = RequestFrame::try_from(request)?;
-        self.conn.write_frame(&request_frame).await?;
-        match self.conn.read_frame::<ResponseFrame>().await? {
-            Some(frame) => Response::try_from(frame),
+        self.conn.write_request(request).await?;
+        match self.conn.read_response().await? {
+            Some(response) => Ok(response),
             None => Err(Error::Connection(ConnectionError::Read(
                 "Could not read response".to_string(),
             ))),

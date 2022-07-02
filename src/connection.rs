@@ -1,11 +1,13 @@
 use crate::error::{ConnectionError, Error, FrameError, Result};
-use crate::frame::Frame;
-use crate::header::Header;
+use crate::frame::{Frame, Header, RequestFrame, ResponseFrame};
+use crate::request::Request;
+use crate::response::Response;
 use bytes::{Buf, BytesMut};
 use std::fmt::Debug;
 use std::io::Cursor;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::TcpStream;
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct Connection {
@@ -21,7 +23,37 @@ impl Connection {
         }
     }
 
-    pub async fn read_frame<F>(&mut self) -> Result<Option<F>>
+    #[instrument(skip(self))]
+    pub async fn read_request(&mut self) -> Result<Option<Request>> {
+        let frame = self.read_frame::<RequestFrame>().await;
+        match frame {
+            Ok(maybe_frame) => maybe_frame.map(Request::try_from).transpose(),
+            Err(e) => Err(e),
+        }
+    }
+
+    #[instrument(skip(self))]
+    pub async fn read_response(&mut self) -> Result<Option<Response>> {
+        let frame = self.read_frame::<ResponseFrame>().await;
+        match frame {
+            Ok(maybe_frame) => maybe_frame.map(Response::try_from).transpose(),
+            Err(e) => Err(e),
+        }
+    }
+
+    #[instrument(skip(self))]
+    pub async fn write_request(&mut self, request: Request) -> Result<()> {
+        let frame = RequestFrame::try_from(request)?;
+        self.write_frame(&frame).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn write_response(&mut self, response: Response) -> Result<()> {
+        let frame = ResponseFrame::try_from(response)?;
+        self.write_frame(&frame).await
+    }
+
+    async fn read_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
     {
@@ -49,7 +81,7 @@ impl Connection {
         }
     }
 
-    pub fn parse_frame<F>(&mut self) -> Result<Option<F>>
+    fn parse_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
     {
@@ -66,7 +98,7 @@ impl Connection {
         }
     }
 
-    pub async fn write_frame<F>(&mut self, frame: &F) -> Result<()>
+    async fn write_frame<F>(&mut self, frame: &F) -> Result<()>
     where
         F: Frame + Debug,
     {

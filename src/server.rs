@@ -10,7 +10,6 @@ use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{broadcast, mpsc};
 
 use crate::connection::Connection;
-use crate::frame::{RequestFrame, ResponseFrame};
 use crate::shutdown::Shutdown;
 use tracing::{debug, error, info, instrument};
 
@@ -50,6 +49,7 @@ impl Server {
             shutdown_complete_rx,
         })
     }
+
     pub async fn run(mut self, shutdown: impl Future) {
         tokio::select! {
             res = (&mut self).serve() => {
@@ -102,7 +102,7 @@ impl Handler {
     async fn run(&mut self) {
         while !self.shutdown.is_shutdown() {
             let request = tokio::select! {
-                res = read_request(&mut self.conn) => res.unwrap(),
+                res = self.conn.read_request() => res.unwrap(),
                 _ = self.shutdown.recv() => {
                     debug!("Received shutdown signal.");
                     return
@@ -110,7 +110,7 @@ impl Handler {
             };
             if let Some(r) = request {
                 let response = self.handle_request(r);
-                write_response(&mut self.conn, response).await.unwrap();
+                self.conn.write_response(response).await.unwrap();
             } else {
                 break;
             }
@@ -157,19 +157,4 @@ impl Handler {
             }
         }
     }
-}
-
-#[instrument(skip(conn))]
-async fn read_request(conn: &mut Connection) -> crate::error::Result<Option<Request>> {
-    let frame = conn.read_frame::<RequestFrame>().await;
-    match frame {
-        Ok(maybe_frame) => maybe_frame.map(Request::try_from).transpose(),
-        Err(e) => Err(e),
-    }
-}
-
-#[instrument(skip(conn))]
-async fn write_response(conn: &mut Connection, resp: Response) -> crate::error::Result<()> {
-    let frame = ResponseFrame::try_from(resp)?;
-    conn.write_frame(&frame).await
 }

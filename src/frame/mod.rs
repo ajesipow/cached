@@ -3,7 +3,12 @@ use std::fmt::Debug;
 use std::io::Cursor;
 
 use crate::error::{Error, FrameError, Result};
-use crate::header::{Header, RequestHeader, ResponseHeader, HEADER_SIZE_BYTES};
+
+mod header;
+pub use header::Header;
+pub use header::RequestHeader;
+pub use header::ResponseHeader;
+use header::HEADER_SIZE_BYTES;
 
 pub trait Frame {
     type Header: Header + TryFrom<Bytes, Error = Error> + Debug;

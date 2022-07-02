@@ -1,6 +1,5 @@
 use crate::error::{Error, Parse, Result};
-use crate::frame::{Frame, ResponseFrame};
-use crate::header::ResponseHeader;
+use crate::frame::{Frame, ResponseFrame, ResponseHeader};
 use crate::primitives::{OpCode, Status};
 
 #[derive(Debug, Eq, PartialEq)]

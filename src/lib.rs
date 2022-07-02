@@ -10,7 +10,6 @@ mod client;
 mod connection;
 mod error;
 mod frame;
-mod header;
 mod primitives;
 mod request;
 mod response;

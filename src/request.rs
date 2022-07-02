@@ -1,6 +1,5 @@
 use crate::error::{Error, Parse};
-use crate::frame::{Frame, RequestFrame};
-use crate::header::RequestHeader;
+use crate::frame::{Frame, RequestFrame, RequestHeader};
 use crate::primitives::OpCode;
 
 #[derive(Debug)]
