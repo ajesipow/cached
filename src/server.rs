@@ -46,6 +46,7 @@ impl<A: ToSocketAddrs> ServerBuilder<A> {
         }
     }
 
+    /// Controls the maximum number of connections the server have open at any one point.
     pub fn max_connections(mut self, max_connections: usize) -> Self {
         self.max_connections = Some(max_connections);
         self

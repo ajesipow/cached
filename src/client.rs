@@ -21,7 +21,7 @@ pub struct ClientConnection {
 }
 
 impl ClientConnection {
-    /// Panics if cannot connect to addr
+    /// Panics if cannot connect to addr.
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let (tx, mut rx) = mpsc::channel::<RequestResponder>(32);
         let stream = TcpStream::connect(addr).await.unwrap();
