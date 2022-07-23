@@ -8,6 +8,7 @@
 
 mod client;
 mod connection;
+mod db;
 mod error;
 mod frame;
 mod primitives;

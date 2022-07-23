@@ -1,26 +1,23 @@
 use crate::primitives::Status;
 use crate::request::Request;
 use crate::response::{Response, ResponseBody, ResponseBodyGet};
-use dashmap::mapref::entry::Entry;
-use dashmap::DashMap;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{broadcast, mpsc, Semaphore};
 
 use crate::connection::Connection;
+use crate::db::{Database, Db};
 use crate::error::ConnectionError;
 use crate::shutdown::Shutdown;
 use crate::{error, Error};
 use tracing::{debug, error, info, instrument};
 
-type Db = Arc<DashMap<String, String>>;
-
 #[derive(Debug)]
 pub struct Server {
     listener: TcpListener,
     port: u16,
-    db: Db,
+    db: Arc<Db>,
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
     shutdown_complete_rx: mpsc::Receiver<()>,
@@ -70,7 +67,7 @@ impl<A: ToSocketAddrs> ServerBuilder<A> {
         Ok(Server {
             listener,
             port,
-            db: Arc::new(DashMap::with_shard_amount(self.shard_amount.unwrap_or(128))),
+            db: Arc::new(Db::new(self.shard_amount.unwrap_or(128))),
             notify_shutdown,
             shutdown_complete_tx,
             shutdown_complete_rx,
@@ -142,7 +139,7 @@ impl Server {
 
 struct Handler {
     conn: Connection,
-    db: Db,
+    db: Arc<Db>,
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
     connection_limit: Arc<Semaphore>,
@@ -176,8 +173,7 @@ impl Handler {
                         Status::Ok,
                         ResponseBody::Get(Some(ResponseBodyGet {
                             key,
-                            // TODO do we want to clone here? Maybe use bytes instead?
-                            value: val.to_string(),
+                            value: val.value.to_string(),
                         })),
                     ),
                     None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
@@ -185,13 +181,12 @@ impl Handler {
                 response
             }
             Request::Set { key, value } => {
-                let response = if let Entry::Vacant(e) = self.db.entry(key) {
-                    e.insert(value);
-                    Response::new(Status::Ok, ResponseBody::Set)
-                } else {
+                if self.db.contains_key(&key) {
                     Response::new(Status::KeyExists, ResponseBody::Set)
-                };
-                response
+                } else {
+                    self.db.insert(key, value, None);
+                    Response::new(Status::Ok, ResponseBody::Set)
+                }
             }
             Request::Delete(key) => {
                 if !self.db.contains_key(&key) {
