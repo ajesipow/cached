@@ -17,7 +17,7 @@ use tracing::{debug, error, info, instrument};
 pub struct Server {
     listener: TcpListener,
     port: u16,
-    db: Db,
+    db: Arc<Db>,
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
     shutdown_complete_rx: mpsc::Receiver<()>,
@@ -67,7 +67,7 @@ impl<A: ToSocketAddrs> ServerBuilder<A> {
         Ok(Server {
             listener,
             port,
-            db: Db::new(self.shard_amount.unwrap_or(128)),
+            db: Arc::new(Db::new(self.shard_amount.unwrap_or(128))),
             notify_shutdown,
             shutdown_complete_tx,
             shutdown_complete_rx,
@@ -139,7 +139,7 @@ impl Server {
 
 struct Handler {
     conn: Connection,
-    db: Db,
+    db: Arc<Db>,
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
     connection_limit: Arc<Semaphore>,
