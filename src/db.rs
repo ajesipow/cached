@@ -1,6 +1,7 @@
 use dashmap::mapref::one::Ref;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use std::ops::Deref;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
@@ -9,20 +10,30 @@ pub(crate) struct DbValue {
     pub ttl_since_unix_epoch_in_millis: Option<u128>,
 }
 
-#[derive(Debug)]
-pub(crate) struct Db(DbInner);
+#[derive(Debug, Clone)]
+pub(crate) struct Db {
+    main_db: Arc<DbInner>,
+    _keys_with_ttl: Arc<DashSet<String>>,
+}
 
 type DbInner = DashMap<String, DbValue>;
 
 impl Db {
     pub fn new(shard_amount: usize) -> Self {
-        Self(DashMap::with_shard_amount(shard_amount))
+        // TODO capacity
+        Self {
+            main_db: Arc::new(DashMap::with_shard_amount(shard_amount)),
+            _keys_with_ttl: Arc::new(Default::default()),
+        }
     }
 }
 
 impl Default for Db {
     fn default() -> Self {
-        Self(DashMap::with_shard_amount(1))
+        Self {
+            main_db: Arc::new(DashMap::with_shard_amount(1)),
+            _keys_with_ttl: Arc::new(Default::default()),
+        }
     }
 }
 
@@ -44,7 +55,7 @@ impl<'a> Database<'a> for Db {
     type Output = Ref<'a, String, DbValue>;
 
     fn insert(&self, key: String, value: String, ttl_since_unix_epoch_in_millis: Option<u128>) {
-        self.0.insert(
+        self.main_db.insert(
             key,
             DbValue {
                 value,
@@ -55,7 +66,7 @@ impl<'a> Database<'a> for Db {
     }
 
     fn get(&'a self, key: &str) -> Option<Self::Output> {
-        let maybe_value = self.0.get(key);
+        let maybe_value = self.main_db.get(key);
         let maybe_ttl = maybe_value
             .as_ref()
             .and_then(|value| value.ttl_since_unix_epoch_in_millis);
@@ -78,15 +89,15 @@ impl<'a> Database<'a> for Db {
     }
 
     fn remove(&self, key: &str) {
-        self.0.remove(key);
+        self.main_db.remove(key);
         // TODO: remove key from expire_keys_set
     }
 
     fn contains_key(&self, key: &str) -> bool {
-        self.0.contains_key(key)
+        self.main_db.contains_key(key)
     }
 
     fn clear(&self) {
-        self.0.clear()
+        self.main_db.clear()
     }
 }
