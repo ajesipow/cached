@@ -103,7 +103,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn test_earlier_ttl_does_not_return_value() {
+    async fn test_ttl_in_past_does_not_return_value() {
         let db = Db::default();
         let key = "Hello";
         let value = "World";
@@ -124,5 +124,64 @@ mod test {
         // Ensure everything is cleaned up
         assert!(db.main_db.get(key).is_none());
         assert!(db.keys_with_ttl.get(key).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_in_future_returns_value() {
+        let db = Db::default();
+        let key = "Hello";
+        let value = "World";
+        let valid_until_now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+            + 1;
+        db.insert(key.to_string(), value.to_string(), Some(valid_until_now));
+
+        // Ensure key is in main db and set of keys with TTL
+        assert!(db.main_db.get(key).is_some());
+        assert!(db.keys_with_ttl.get(key).is_some());
+
+        // Must not return the key as its TTL expired already
+        assert!(db.get(key).is_some());
+
+        // Ensure everything is still present
+        assert!(db.main_db.get(key).is_some());
+        assert!(db.keys_with_ttl.get(key).is_some());
+    }
+
+    #[tokio::test]
+    async fn test_removing_key_is_also_removed_from_ttl_set() {
+        let db = Db::default();
+        let key = "Hello";
+        let value = "World";
+        let valid_until_now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+            + 1;
+        db.insert(key.to_string(), value.to_string(), Some(valid_until_now));
+
+        // Ensure key is in main db and set of keys with TTL
+        assert!(db.main_db.get(key).is_some());
+        assert!(db.keys_with_ttl.get(key).is_some());
+
+        db.remove(key);
+
+        // Ensure everything is removed
+        assert!(db.main_db.get(key).is_none());
+        assert!(db.keys_with_ttl.get(key).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_contains_key_works() {
+        let db = Db::default();
+        let key = "Hello";
+        let value = "World";
+        db.insert(key.to_string(), value.to_string(), None);
+
+        assert!(db.contains_key(key));
+        db.remove(key);
+        assert!(!db.contains_key(key));
     }
 }
