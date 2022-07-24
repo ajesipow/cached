@@ -184,4 +184,17 @@ mod test {
         db.remove(key);
         assert!(!db.contains_key(key));
     }
+
+    #[tokio::test]
+    async fn test_clearing_db_works() {
+        let db = Db::default();
+        let key = "Hello";
+        let value = "World";
+        db.insert(key.to_string(), value.to_string(), None);
+
+        assert!(db.contains_key(key));
+        db.clear();
+        assert_eq!(db.main_db.len(), 0);
+        assert_eq!(db.keys_with_ttl.len(), 0);
+    }
 }
