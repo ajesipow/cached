@@ -58,8 +58,17 @@ impl Client {
     }
 
     #[instrument(skip(self))]
-    pub async fn set(&self, key: String, value: String) -> Result<Response> {
-        let request = Request::Set { key, value };
+    pub async fn set(
+        &self,
+        key: String,
+        value: String,
+        ttl_since_unix_epoch_in_millis: Option<u128>,
+    ) -> Result<Response> {
+        let request = Request::Set {
+            key,
+            value,
+            ttl_since_unix_epoch_in_millis,
+        };
         self.handle_request(request).await
     }
 

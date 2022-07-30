@@ -27,7 +27,7 @@ async fn main() {
     tokio::time::sleep(Duration::from_secs(10)).await;
 
     let resp = client
-        .set(key.clone(), "My own private value".to_string())
+        .set(key.clone(), "My own private value".to_string(), None)
         .await;
     info!("Got response: {:?}", resp);
     let resp = client.get(key.clone()).await;
@@ -40,7 +40,7 @@ async fn main() {
     info!("Got response: {:?}", resp);
 
     let resp = client
-        .set(key.clone(), "My own private value".to_string())
+        .set(key.clone(), "My own private value".to_string(), None)
         .await;
     info!("Got response: {:?}", resp);
 

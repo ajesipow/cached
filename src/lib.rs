@@ -9,6 +9,7 @@
 mod client;
 mod connection;
 mod db;
+mod domain;
 mod error;
 mod frame;
 mod primitives;

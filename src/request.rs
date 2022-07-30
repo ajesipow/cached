@@ -1,12 +1,19 @@
 use crate::error::{Error, Parse};
-use crate::frame::{Frame, RequestFrame, RequestHeader};
+use crate::frame::{Frame, RequestFrame};
 use crate::primitives::OpCode;
+
+use crate::frame::header::Header;
+use crate::frame::header::RequestHeader;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Request {
     Get(String),
-    Set { key: String, value: String },
+    Set {
+        key: String,
+        value: String,
+        ttl_since_unix_epoch_in_millis: Option<u128>,
+    },
     Delete(String),
     Flush,
 }
@@ -17,19 +24,28 @@ impl TryFrom<Request> for RequestFrame {
     fn try_from(req: Request) -> Result<Self, Self::Error> {
         let (header, key, value) = match req {
             Request::Get(key) => {
-                let header = RequestHeader::parse(OpCode::Get, Some(&key), None)?;
+                let header = RequestHeader::parse(OpCode::Get, Some(&key), None, None)?;
                 (header, Some(key), None)
             }
-            Request::Set { key, value } => {
-                let header = RequestHeader::parse(OpCode::Set, Some(&key), Some(&value))?;
+            Request::Set {
+                key,
+                value,
+                ttl_since_unix_epoch_in_millis,
+            } => {
+                let header = RequestHeader::parse(
+                    OpCode::Set,
+                    Some(&key),
+                    Some(&value),
+                    ttl_since_unix_epoch_in_millis,
+                )?;
                 (header, Some(key), Some(value))
             }
             Request::Delete(key) => {
-                let header = RequestHeader::parse(OpCode::Delete, Some(&key), None)?;
+                let header = RequestHeader::parse(OpCode::Delete, Some(&key), None, None)?;
                 (header, Some(key), None)
             }
             Request::Flush => {
-                let header = RequestHeader::parse(OpCode::Flush, None, None)?;
+                let header = RequestHeader::parse(OpCode::Flush, None, None, None)?;
                 (header, None, None)
             }
         };
@@ -45,6 +61,10 @@ impl TryFrom<RequestFrame> for Request {
             OpCode::Set => Ok(Request::Set {
                 key: frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
                 value: frame.value.ok_or(Error::Parse(Parse::ValueMissing))?,
+                ttl_since_unix_epoch_in_millis: frame
+                    .header
+                    .get_ttl_since_unix_epoch_in_millis()
+                    .into_ttl(),
             }),
             OpCode::Get => {
                 if frame.value.is_some() {
@@ -92,7 +112,7 @@ mod test {
         OpCode::Set,
         Some("ABC".to_string()),
         Some("Some value".to_string()),
-        Request::Set {key: "ABC".to_string(), value: "Some value".to_string() }
+        Request::Set {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: None }
     )]
     #[case(
         OpCode::Delete,
@@ -108,7 +128,7 @@ mod test {
         #[case] expected_request: Request,
     ) {
         let req_frame = RequestFrame {
-            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref()).unwrap(),
+            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref(), None).unwrap(),
             key,
             value,
         };
@@ -153,7 +173,7 @@ mod test {
         #[case] value: Option<String>,
     ) {
         let req_frame = RequestFrame {
-            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref()).unwrap(),
+            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref(), None).unwrap(),
             key,
             value,
         };

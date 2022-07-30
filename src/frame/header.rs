@@ -1,14 +1,15 @@
+use crate::domain::TTLSinceUnixEpochInMillis;
 use crate::error::{Error, FrameError, Result};
 use crate::primitives::{OpCode, Status};
 use bytes::{Buf, Bytes};
 
 pub(crate) static HEADER_SIZE_BYTES: u8 = 23;
 
-pub trait Header {
+pub(crate) trait Header {
     fn get_op_code(&self) -> OpCode;
     fn get_key_length(&self) -> u8;
     fn get_status_or_padding(&self) -> u8;
-    fn get_ttl_since_unix_epoch_in_millis(&self) -> u128;
+    fn get_ttl_since_unix_epoch_in_millis(&self) -> TTLSinceUnixEpochInMillis;
     fn get_total_frame_length(&self) -> u32;
 }
 
@@ -23,18 +24,24 @@ struct RequestHeaderInner {
     /// Can be ignored
     pub padding: u8,
     pub key_length: u8,
-    pub ttl_since_unix_epoch_in_millis: u128,
+    pub ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
     pub total_frame_length: u32,
 }
 
 impl RequestHeader {
-    pub fn parse(op_code: OpCode, key: Option<&str>, value: Option<&str>) -> Result<Self> {
+    pub fn parse(
+        op_code: OpCode,
+        key: Option<&str>,
+        value: Option<&str>,
+        ttl_since_unix_epoch_in_millis: Option<u128>,
+    ) -> Result<Self> {
         let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
+        let ttl = TTLSinceUnixEpochInMillis::parse(ttl_since_unix_epoch_in_millis);
         Ok(Self(RequestHeaderInner {
             op_code,
             padding: 0,
             key_length,
-            ttl_since_unix_epoch_in_millis: 0,
+            ttl_since_unix_epoch_in_millis: ttl,
             total_frame_length,
         }))
     }
@@ -52,12 +59,11 @@ impl Header for RequestHeader {
         self.0.key_length
     }
 
-    // TODO rename
     fn get_status_or_padding(&self) -> u8 {
         self.0.padding
     }
 
-    fn get_ttl_since_unix_epoch_in_millis(&self) -> u128 {
+    fn get_ttl_since_unix_epoch_in_millis(&self) -> TTLSinceUnixEpochInMillis {
         self.0.ttl_since_unix_epoch_in_millis
     }
 
@@ -76,7 +82,7 @@ struct ResponseHeaderInner {
     pub op_code: OpCode,
     pub status: Status,
     pub key_length: u8,
-    pub ttl_since_unix_epoch_in_millis: u128,
+    pub ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
     pub total_frame_length: u32,
 }
 
@@ -92,7 +98,8 @@ impl ResponseHeader {
             op_code,
             status,
             key_length,
-            ttl_since_unix_epoch_in_millis: 0,
+            // FIXME
+            ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis::parse(Some(0)),
             total_frame_length,
         }))
     }
@@ -119,7 +126,7 @@ impl Header for ResponseHeader {
         self.0.status as u8
     }
 
-    fn get_ttl_since_unix_epoch_in_millis(&self) -> u128 {
+    fn get_ttl_since_unix_epoch_in_millis(&self) -> TTLSinceUnixEpochInMillis {
         self.0.ttl_since_unix_epoch_in_millis
     }
 
@@ -138,7 +145,8 @@ impl TryFrom<Bytes> for RequestHeader {
         let op_code = OpCode::try_from(value.get_u8())?;
         let padding = value.get_u8();
         let key_length = value.get_u8();
-        let ttl_since_unix_epoch_in_millis = value.get_u128();
+        let ttl_since_unix_epoch_in_millis =
+            TTLSinceUnixEpochInMillis::parse(Some(value.get_u128()));
         let total_frame_length = value.get_u32();
 
         Ok(Self(RequestHeaderInner {
@@ -161,7 +169,8 @@ impl TryFrom<Bytes> for ResponseHeader {
         let op_code = OpCode::try_from(value.get_u8())?;
         let status = Status::try_from(value.get_u8())?;
         let key_length = value.get_u8();
-        let ttl_since_unix_epoch_in_millis = value.get_u128();
+        let ttl_since_unix_epoch_in_millis =
+            TTLSinceUnixEpochInMillis::parse(Some(value.get_u128()));
         let total_frame_length = value.get_u32();
 
         Ok(Self(ResponseHeaderInner {
@@ -208,7 +217,7 @@ mod test {
     fn test_parsing_request_header_with_valid_long_key_works() {
         let key = "a".repeat(u8::MAX as usize);
         assert!(
-            RequestHeader::parse(OpCode::Get, Some(key.as_str()), None).is_ok(),
+            RequestHeader::parse(OpCode::Get, Some(key.as_str()), None, None).is_ok(),
             "Was not able to parse a valid long key!"
         );
     }
@@ -217,7 +226,7 @@ mod test {
     fn test_parsing_request_header_with_too_long_key_fails() {
         let key = "a".repeat(u8::MAX as usize + 1);
         assert_eq!(
-            RequestHeader::parse(OpCode::Get, Some(key.as_str()), None),
+            RequestHeader::parse(OpCode::Get, Some(key.as_str()), None, None),
             Err(Error::Frame(FrameError::KeyTooLong))
         );
     }
@@ -226,7 +235,7 @@ mod test {
     fn test_parsing_request_header_with_valid_long_value_works() {
         let value = "a".repeat((1024 * 1024) as usize);
         assert!(
-            RequestHeader::parse(OpCode::Get, None, Some(value.as_str())).is_ok(),
+            RequestHeader::parse(OpCode::Get, None, Some(value.as_str()), None).is_ok(),
             "Was not able to parse a valid long value!"
         );
     }
@@ -235,7 +244,7 @@ mod test {
     fn test_parsing_request_header_with_too_long_value_fails() {
         let value = "a".repeat((1024 * 1024) as usize + 1);
         assert_eq!(
-            RequestHeader::parse(OpCode::Get, None, Some(value.as_str())),
+            RequestHeader::parse(OpCode::Get, None, Some(value.as_str()), None),
             Err(Error::Frame(FrameError::ValueTooLong))
         );
     }
@@ -245,7 +254,8 @@ mod test {
         let key = "a".repeat(u8::MAX as usize);
         let value = "a".repeat((1024 * 1024) as usize);
         assert!(
-            RequestHeader::parse(OpCode::Get, Some(key.as_str()), Some(value.as_str())).is_ok(),
+            RequestHeader::parse(OpCode::Get, Some(key.as_str()), Some(value.as_str()), None)
+                .is_ok(),
             "Was not able to parse a valid long value!"
         );
     }

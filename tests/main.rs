@@ -40,7 +40,7 @@ async fn test_setting_a_key_works() {
     let resp = client.get(key.clone()).await.unwrap();
     assert_eq!(resp.status, Status::KeyNotFound);
 
-    let resp = client.set(key.clone(), value.clone()).await.unwrap();
+    let resp = client.set(key.clone(), value.clone(), None).await.unwrap();
     assert_eq!(resp.status, Status::Ok);
 
     let resp = client.get(key.clone()).await.unwrap();
@@ -64,7 +64,7 @@ async fn test_setting_the_same_key_twice_fails() {
     let resp = client.get(key.clone()).await.unwrap();
     assert_eq!(resp.status, Status::KeyNotFound);
 
-    let resp = client.set(key.clone(), value.clone()).await.unwrap();
+    let resp = client.set(key.clone(), value.clone(), None).await.unwrap();
     assert_eq!(resp.status, Status::Ok);
 
     let resp = client.get(key.clone()).await.unwrap();
@@ -79,7 +79,7 @@ async fn test_setting_the_same_key_twice_fails() {
         )
     );
 
-    let resp = client.set(key, value).await.unwrap();
+    let resp = client.set(key, value, None).await.unwrap();
     assert_eq!(resp.status, Status::KeyExists);
 }
 
@@ -94,7 +94,7 @@ async fn test_deleting_a_key_works() {
     let resp = client.get(key.clone()).await.unwrap();
     assert_eq!(resp.status, Status::KeyNotFound);
 
-    let resp = client.set(key.clone(), value.clone()).await.unwrap();
+    let resp = client.set(key.clone(), value.clone(), None).await.unwrap();
     assert_eq!(resp.status, Status::Ok);
 
     let resp = client.get(key.clone()).await.unwrap();
@@ -139,7 +139,7 @@ async fn test_flushing_works() {
     let resp = client.get(key.clone()).await.unwrap();
     assert_eq!(resp.status, Status::KeyNotFound);
 
-    let resp = client.set(key.clone(), value.clone()).await.unwrap();
+    let resp = client.set(key.clone(), value.clone(), None).await.unwrap();
     assert_eq!(resp.status, Status::Ok);
 
     let resp = client.get(key.clone()).await.unwrap();
@@ -172,8 +172,8 @@ async fn test_setting_and_getting_keys_concurrently_works() {
     let value_1 = "1234".to_string();
     let value_2 = "5678".to_string();
     let (resp_1, resp_2) = tokio::join!(
-        client.set(key_1.clone(), value_1.clone()),
-        client.set(key_2.clone(), value_2.clone())
+        client.set(key_1.clone(), value_1.clone(), None),
+        client.set(key_2.clone(), value_2.clone(), None)
     );
     assert_eq!(resp_1.unwrap().status, Status::Ok);
     assert_eq!(resp_2.unwrap().status, Status::Ok);

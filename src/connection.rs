@@ -1,5 +1,6 @@
 use crate::error::{ConnectionError, Error, FrameError, Result};
-use crate::frame::{Frame, Header, RequestFrame, ResponseFrame};
+use crate::frame::header::Header;
+use crate::frame::{Frame, RequestFrame, ResponseFrame};
 use crate::request::Request;
 use crate::response::Response;
 use bytes::{Buf, BytesMut};
@@ -133,7 +134,12 @@ impl Connection {
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u128(frame.get_header().get_ttl_since_unix_epoch_in_millis())
+            .write_u128(
+                frame
+                    .get_header()
+                    .get_ttl_since_unix_epoch_in_millis()
+                    .into_inner(),
+            )
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream

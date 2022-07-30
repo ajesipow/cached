@@ -180,11 +180,15 @@ impl Handler {
                 };
                 response
             }
-            Request::Set { key, value } => {
+            Request::Set {
+                key,
+                value,
+                ttl_since_unix_epoch_in_millis,
+            } => {
                 if self.db.contains_key(&key) {
                     Response::new(Status::KeyExists, ResponseBody::Set)
                 } else {
-                    self.db.insert(key, value, None);
+                    self.db.insert(key, value, ttl_since_unix_epoch_in_millis);
                     Response::new(Status::Ok, ResponseBody::Set)
                 }
             }

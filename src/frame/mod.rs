@@ -4,13 +4,10 @@ use std::io::Cursor;
 
 use crate::error::{Error, FrameError, Result};
 
-mod header;
-pub use header::Header;
-pub use header::RequestHeader;
-pub use header::ResponseHeader;
-use header::HEADER_SIZE_BYTES;
+pub(crate) mod header;
+use header::*;
 
-pub trait Frame {
+pub(crate) trait Frame {
     type Header: Header + TryFrom<Bytes, Error = Error> + Debug;
 
     fn new(header: Self::Header, key: Option<String>, value: Option<String>) -> Self;

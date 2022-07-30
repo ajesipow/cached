@@ -44,14 +44,9 @@ pub(crate) trait Database<'a> {
 impl<'a> Database<'a> for Db {
     type Output = Ref<'a, String, DbValue>;
 
-    fn insert(
-        &self,
-        key: String,
-        value: String,
-        maybe_ttl_since_unix_epoch_in_millis: Option<u128>,
-    ) {
-        if let Some(ttl_since_unix_epoch_in_millis) = maybe_ttl_since_unix_epoch_in_millis {
-            if ttl_since_unix_epoch_in_millis
+    fn insert(&self, key: String, value: String, ttl_since_unix_epoch_in_millis: Option<u128>) {
+        if let Some(ttl) = ttl_since_unix_epoch_in_millis {
+            if ttl
                 <= SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .expect("Time went backwards")
@@ -66,7 +61,7 @@ impl<'a> Database<'a> for Db {
             key,
             DbValue {
                 value,
-                ttl_since_unix_epoch_in_millis: maybe_ttl_since_unix_epoch_in_millis,
+                ttl_since_unix_epoch_in_millis,
             },
         );
     }
