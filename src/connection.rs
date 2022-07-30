@@ -125,11 +125,15 @@ impl Connection {
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u8(frame.get_header().get_status_or_blank())
+            .write_u8(frame.get_header().get_status_or_padding())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
             .write_u8(frame.get_header().get_key_length())
+            .await
+            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+        self.stream
+            .write_u128(frame.get_header().get_ttl_since_unix_epoch_in_millis())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream

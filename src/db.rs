@@ -44,14 +44,21 @@ pub(crate) trait Database<'a> {
 impl<'a> Database<'a> for Db {
     type Output = Ref<'a, String, DbValue>;
 
-    fn insert(&self, key: String, value: String, maybe_ttl_since_unix_epoch_in_millis: Option<u128>) {
+    fn insert(
+        &self,
+        key: String,
+        value: String,
+        maybe_ttl_since_unix_epoch_in_millis: Option<u128>,
+    ) {
         if let Some(ttl_since_unix_epoch_in_millis) = maybe_ttl_since_unix_epoch_in_millis {
-            if ttl_since_unix_epoch_in_millis <= SystemTime::now()
+            if ttl_since_unix_epoch_in_millis
+                <= SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .expect("Time went backwards")
-                    .as_millis() {
+                    .as_millis()
+            {
                 // TTL in the past, don't store anything
-                return
+                return;
             }
             self.keys_with_ttl.insert(key.clone());
         }
@@ -105,8 +112,8 @@ impl<'a> Database<'a> for Db {
 
 #[cfg(test)]
 mod test {
-    use std::time::Duration;
     use super::*;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn test_ttl_elapsed_does_not_return_value() {
@@ -116,7 +123,8 @@ mod test {
         let valid_until = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_millis() + 1;
+            .as_millis()
+            + 1;
         db.insert(key.to_string(), value.to_string(), Some(valid_until));
 
         // Ensure key is in main db and set of keys with TTL

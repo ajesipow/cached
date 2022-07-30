@@ -2,12 +2,13 @@ use crate::error::{Error, FrameError, Result};
 use crate::primitives::{OpCode, Status};
 use bytes::{Buf, Bytes};
 
-pub(crate) static HEADER_SIZE_BYTES: u8 = 7;
+pub(crate) static HEADER_SIZE_BYTES: u8 = 23;
 
 pub trait Header {
     fn get_op_code(&self) -> OpCode;
     fn get_key_length(&self) -> u8;
-    fn get_status_or_blank(&self) -> u8;
+    fn get_status_or_padding(&self) -> u8;
+    fn get_ttl_since_unix_epoch_in_millis(&self) -> u128;
     fn get_total_frame_length(&self) -> u32;
 }
 
@@ -20,8 +21,9 @@ pub struct RequestHeader(RequestHeaderInner);
 struct RequestHeaderInner {
     pub op_code: OpCode,
     /// Can be ignored
-    pub blank: u8,
+    pub padding: u8,
     pub key_length: u8,
+    pub ttl_since_unix_epoch_in_millis: u128,
     pub total_frame_length: u32,
 }
 
@@ -30,8 +32,9 @@ impl RequestHeader {
         let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
         Ok(Self(RequestHeaderInner {
             op_code,
-            blank: 0,
+            padding: 0,
             key_length,
+            ttl_since_unix_epoch_in_millis: 0,
             total_frame_length,
         }))
     }
@@ -50,8 +53,12 @@ impl Header for RequestHeader {
     }
 
     // TODO rename
-    fn get_status_or_blank(&self) -> u8 {
-        self.0.blank
+    fn get_status_or_padding(&self) -> u8 {
+        self.0.padding
+    }
+
+    fn get_ttl_since_unix_epoch_in_millis(&self) -> u128 {
+        self.0.ttl_since_unix_epoch_in_millis
     }
 
     fn get_total_frame_length(&self) -> u32 {
@@ -69,6 +76,7 @@ struct ResponseHeaderInner {
     pub op_code: OpCode,
     pub status: Status,
     pub key_length: u8,
+    pub ttl_since_unix_epoch_in_millis: u128,
     pub total_frame_length: u32,
 }
 
@@ -84,6 +92,7 @@ impl ResponseHeader {
             op_code,
             status,
             key_length,
+            ttl_since_unix_epoch_in_millis: 0,
             total_frame_length,
         }))
     }
@@ -101,12 +110,17 @@ impl Header for ResponseHeader {
     fn get_op_code(&self) -> OpCode {
         self.0.op_code
     }
+
     fn get_key_length(&self) -> u8 {
         self.0.key_length
     }
 
-    fn get_status_or_blank(&self) -> u8 {
+    fn get_status_or_padding(&self) -> u8 {
         self.0.status as u8
+    }
+
+    fn get_ttl_since_unix_epoch_in_millis(&self) -> u128 {
+        self.0.ttl_since_unix_epoch_in_millis
     }
 
     fn get_total_frame_length(&self) -> u32 {
@@ -122,14 +136,16 @@ impl TryFrom<Bytes> for RequestHeader {
             return Err(Error::Frame(FrameError::Incomplete));
         }
         let op_code = OpCode::try_from(value.get_u8())?;
-        let blank = value.get_u8();
+        let padding = value.get_u8();
         let key_length = value.get_u8();
+        let ttl_since_unix_epoch_in_millis = value.get_u128();
         let total_frame_length = value.get_u32();
 
         Ok(Self(RequestHeaderInner {
             op_code,
             key_length,
-            blank,
+            padding,
+            ttl_since_unix_epoch_in_millis,
             total_frame_length,
         }))
     }
@@ -145,12 +161,14 @@ impl TryFrom<Bytes> for ResponseHeader {
         let op_code = OpCode::try_from(value.get_u8())?;
         let status = Status::try_from(value.get_u8())?;
         let key_length = value.get_u8();
+        let ttl_since_unix_epoch_in_millis = value.get_u128();
         let total_frame_length = value.get_u32();
 
         Ok(Self(ResponseHeaderInner {
             op_code,
             status,
             key_length,
+            ttl_since_unix_epoch_in_millis,
             total_frame_length,
         }))
     }
