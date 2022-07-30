@@ -44,17 +44,22 @@ pub(crate) trait Database<'a> {
 impl<'a> Database<'a> for Db {
     type Output = Ref<'a, String, DbValue>;
 
-    fn insert(&self, key: String, value: String, ttl_since_unix_epoch_in_millis: Option<u128>) {
-        // TODO: don't even insert keys where TTL is in the past
-        if ttl_since_unix_epoch_in_millis.is_some() {
-            // TODO let's try not to clone here
+    fn insert(&self, key: String, value: String, maybe_ttl_since_unix_epoch_in_millis: Option<u128>) {
+        if let Some(ttl_since_unix_epoch_in_millis) = maybe_ttl_since_unix_epoch_in_millis {
+            if ttl_since_unix_epoch_in_millis <= SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards")
+                    .as_millis() {
+                // TTL in the past, don't store anything
+                return
+            }
             self.keys_with_ttl.insert(key.clone());
         }
         self.main_db.insert(
             key,
             DbValue {
                 value,
-                ttl_since_unix_epoch_in_millis,
+                ttl_since_unix_epoch_in_millis: maybe_ttl_since_unix_epoch_in_millis,
             },
         );
     }
@@ -100,28 +105,45 @@ impl<'a> Database<'a> for Db {
 
 #[cfg(test)]
 mod test {
+    use std::time::Duration;
     use super::*;
 
     #[tokio::test]
-    async fn test_ttl_in_past_does_not_return_value() {
+    async fn test_ttl_elapsed_does_not_return_value() {
+        let db = Db::default();
+        let key = "Hello";
+        let value = "World";
+        let valid_until = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() + 1;
+        db.insert(key.to_string(), value.to_string(), Some(valid_until));
+
+        // Ensure key is in main db and set of keys with TTL
+        assert!(db.main_db.get(key).is_some());
+        assert!(db.keys_with_ttl.get(key).is_some());
+
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        // Must not return the key as its TTL expired already
+        assert!(db.get(key).is_none());
+
+        // Ensure everything is cleaned up
+        assert!(db.main_db.get(key).is_none());
+        assert!(db.keys_with_ttl.get(key).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_in_past_does_not_store_value() {
         let db = Db::default();
         let key = "Hello";
         let value = "World";
         let valid_until_now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_millis()
-            - 1;
+            .as_millis();
         db.insert(key.to_string(), value.to_string(), Some(valid_until_now));
 
         // Ensure key is in main db and set of keys with TTL
-        assert!(db.main_db.get(key).is_some());
-        assert!(db.keys_with_ttl.get(key).is_some());
-
-        // Must not return the key as its TTL expired already
-        assert!(db.get(key).is_none());
-
-        // Ensure everything is cleaned up
         assert!(db.main_db.get(key).is_none());
         assert!(db.keys_with_ttl.get(key).is_none());
     }
