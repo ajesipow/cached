@@ -174,6 +174,7 @@ impl Handler {
                         ResponseBody::Get(Some(ResponseBodyGet {
                             key,
                             value: val.value.to_string(),
+                            ttl_since_unix_epoch_in_millis: val.ttl_since_unix_epoch_in_millis,
                         })),
                     ),
                     None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),

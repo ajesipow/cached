@@ -2,7 +2,7 @@ use crate::error::{Error, Parse, Result};
 use crate::frame::{Frame, ResponseFrame};
 use crate::primitives::{OpCode, Status};
 
-use crate::frame::header::ResponseHeader;
+use crate::frame::header::{Header, ResponseHeader};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Response {
@@ -28,6 +28,7 @@ pub enum ResponseBody {
 pub struct ResponseBodyGet {
     pub key: String,
     pub value: String,
+    pub ttl_since_unix_epoch_in_millis: Option<u128>,
 }
 
 impl TryFrom<Response> for ResponseFrame {
@@ -55,7 +56,15 @@ impl TryFrom<ResponseFrame> for Response {
             OpCode::Get => {
                 // TODO beautify
                 let body_result = match (frame.key, frame.value) {
-                    (Some(key), Some(value)) => Ok(Some(ResponseBodyGet { key, value })),
+                    (Some(key), Some(value)) => {
+                        let ttl_since_unix_epoch_in_millis =
+                            frame.header.get_ttl_since_unix_epoch_in_millis().into_ttl();
+                        Ok(Some(ResponseBodyGet {
+                            key,
+                            value,
+                            ttl_since_unix_epoch_in_millis,
+                        }))
+                    }
                     (Some(_), None) => Err(Error::Parse(Parse::ValueMissing)),
                     (None, Some(_)) => Err(Error::Parse(Parse::KeyMissing)),
                     (None, None) => Err(Error::Parse(Parse::KeyAndValueMissing)),
@@ -114,7 +123,7 @@ mod test {
         Status::Ok,
         Some("ABC".to_string()),
         Some("Some value".to_string()),
-        ResponseBody::Get(Some( ResponseBodyGet {key: "ABC".to_string(), value: "Some value".to_string()}))
+        ResponseBody::Get(Some( ResponseBodyGet {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: None}))
     )]
     #[case(OpCode::Set, Status::Ok, None, None, ResponseBody::Set)]
     #[case(OpCode::Delete, Status::Ok, None, None, ResponseBody::Delete)]

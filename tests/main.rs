@@ -48,7 +48,11 @@ async fn test_setting_a_key_works() {
         resp,
         Response::new(
             Status::Ok,
-            ResponseBody::Get(Some(ResponseBodyGet { key, value }))
+            ResponseBody::Get(Some(ResponseBodyGet {
+                key,
+                value,
+                ttl_since_unix_epoch_in_millis: None
+            }))
         )
     );
 }
@@ -74,7 +78,8 @@ async fn test_setting_the_same_key_twice_fails() {
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
                 key: key.clone(),
-                value: value.clone()
+                value: value.clone(),
+                ttl_since_unix_epoch_in_millis: None
             }))
         )
     );
@@ -104,7 +109,8 @@ async fn test_deleting_a_key_works() {
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
                 key: key.clone(),
-                value
+                value,
+                ttl_since_unix_epoch_in_millis: None
             }))
         )
     );
@@ -149,7 +155,8 @@ async fn test_flushing_works() {
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
                 key: key.clone(),
-                value
+                value,
+                ttl_since_unix_epoch_in_millis: None
             }))
         )
     );
@@ -185,7 +192,8 @@ async fn test_setting_and_getting_keys_concurrently_works() {
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
                 key: key_1,
-                value: value_1
+                value: value_1,
+                ttl_since_unix_epoch_in_millis: None
             }))
         )
     );
@@ -196,7 +204,8 @@ async fn test_setting_and_getting_keys_concurrently_works() {
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
                 key: key_2,
-                value: value_2
+                value: value_2,
+                ttl_since_unix_epoch_in_millis: None
             }))
         )
     );
