@@ -134,7 +134,7 @@ mod test {
         Status::Ok,
         Some("ABC".to_string()),
         Some("Some value".to_string()),
-        None,
+        Some(123456678901),
         ResponseBody::Get(Some( ResponseBodyGet {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: Some(123456678901)}))
     )]
     #[case(OpCode::Set, Status::Ok, None, None, None, ResponseBody::Set)]
