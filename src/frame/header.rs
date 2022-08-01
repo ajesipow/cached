@@ -92,14 +92,16 @@ impl ResponseHeader {
         status: Status,
         key: Option<&str>,
         value: Option<&str>,
+        ttl_since_unix_epoch_in_millis: Option<u128>,
     ) -> Result<Self> {
         let (key_length, total_frame_length) = get_key_and_total_frame_length(key, value)?;
         Ok(Self(ResponseHeaderInner {
             op_code,
             status,
             key_length,
-            // FIXME
-            ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis::parse(Some(0)),
+            ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis::parse(
+                ttl_since_unix_epoch_in_millis,
+            ),
             total_frame_length,
         }))
     }
@@ -264,7 +266,7 @@ mod test {
     fn test_parsing_response_header_with_valid_long_key_works() {
         let key = "a".repeat(u8::MAX as usize);
         assert!(
-            ResponseHeader::parse(OpCode::Get, Status::Ok, Some(key.as_str()), None).is_ok(),
+            ResponseHeader::parse(OpCode::Get, Status::Ok, Some(key.as_str()), None, None).is_ok(),
             "Was not able to parse a valid long key!"
         );
     }
@@ -273,7 +275,7 @@ mod test {
     fn test_parsing_response_header_with_too_long_key_fails() {
         let key = "a".repeat(u8::MAX as usize + 1);
         assert_eq!(
-            ResponseHeader::parse(OpCode::Get, Status::Ok, Some(key.as_str()), None),
+            ResponseHeader::parse(OpCode::Get, Status::Ok, Some(key.as_str()), None, None),
             Err(Error::Frame(FrameError::KeyTooLong))
         );
     }
@@ -282,7 +284,8 @@ mod test {
     fn test_parsing_response_header_with_valid_long_value_works() {
         let value = "a".repeat((1024 * 1024) as usize);
         assert!(
-            ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str())).is_ok(),
+            ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str()), None)
+                .is_ok(),
             "Was not able to parse a valid long value!"
         );
     }
@@ -291,7 +294,7 @@ mod test {
     fn test_parsing_response_header_with_too_long_value_fails() {
         let value = "a".repeat((1024 * 1024) as usize + 1);
         assert_eq!(
-            ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str())),
+            ResponseHeader::parse(OpCode::Get, Status::Ok, None, Some(value.as_str()), None),
             Err(Error::Frame(FrameError::ValueTooLong))
         );
     }
@@ -305,7 +308,8 @@ mod test {
                 OpCode::Get,
                 Status::Ok,
                 Some(key.as_str()),
-                Some(value.as_str())
+                Some(value.as_str()),
+                None
             )
             .is_ok(),
             "Was not able to parse a valid long value!"

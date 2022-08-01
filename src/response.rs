@@ -34,16 +34,19 @@ pub struct ResponseBodyGet {
 impl TryFrom<Response> for ResponseFrame {
     type Error = Error;
     fn try_from(resp: Response) -> Result<Self> {
-        let (op_code, key, value) = match resp.body {
+        let (op_code, key, value, ttl) = match resp.body {
             ResponseBody::Get(get_body) => {
-                let (k, v) = get_body.map_or((None, None), |b| (Some(b.key), Some(b.value)));
-                (OpCode::Get, k, v)
+                let (k, v, ttl) = get_body.map_or((None, None, None), |b| {
+                    (Some(b.key), Some(b.value), b.ttl_since_unix_epoch_in_millis)
+                });
+                (OpCode::Get, k, v, ttl)
             }
-            ResponseBody::Set => (OpCode::Set, None, None),
-            ResponseBody::Delete => (OpCode::Delete, None, None),
-            ResponseBody::Flush => (OpCode::Flush, None, None),
+            ResponseBody::Set => (OpCode::Set, None, None, None),
+            ResponseBody::Delete => (OpCode::Delete, None, None, None),
+            ResponseBody::Flush => (OpCode::Flush, None, None, None),
         };
-        let header = ResponseHeader::parse(op_code, resp.status, key.as_deref(), value.as_deref())?;
+        let header =
+            ResponseHeader::parse(op_code, resp.status, key.as_deref(), value.as_deref(), ttl)?;
         Ok(ResponseFrame::new(header, key, value))
     }
 }
@@ -123,20 +126,30 @@ mod test {
         Status::Ok,
         Some("ABC".to_string()),
         Some("Some value".to_string()),
+        None,
         ResponseBody::Get(Some( ResponseBodyGet {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: None}))
     )]
-    #[case(OpCode::Set, Status::Ok, None, None, ResponseBody::Set)]
-    #[case(OpCode::Delete, Status::Ok, None, None, ResponseBody::Delete)]
-    #[case(OpCode::Flush, Status::Ok, None, None, ResponseBody::Flush)]
+    #[case(
+        OpCode::Get,
+        Status::Ok,
+        Some("ABC".to_string()),
+        Some("Some value".to_string()),
+        None,
+        ResponseBody::Get(Some( ResponseBodyGet {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: Some(123456678901)}))
+    )]
+    #[case(OpCode::Set, Status::Ok, None, None, None, ResponseBody::Set)]
+    #[case(OpCode::Delete, Status::Ok, None, None, None, ResponseBody::Delete)]
+    #[case(OpCode::Flush, Status::Ok, None, None, None, ResponseBody::Flush)]
     fn test_conversion_from_valid_response_frame_to_response_works(
         #[case] op_code: OpCode,
         #[case] status: Status,
         #[case] key: Option<String>,
         #[case] value: Option<String>,
+        #[case] ttl: Option<u128>,
         #[case] expected_response_body: ResponseBody,
     ) {
         let resp_frame = ResponseFrame {
-            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref())
+            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref(), ttl)
                 .unwrap(),
             key,
             value,
@@ -174,7 +187,7 @@ mod test {
         #[case] value: Option<String>,
     ) {
         let resp_frame = ResponseFrame {
-            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref())
+            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref(), None)
                 .unwrap(),
             key,
             value,

@@ -1,6 +1,6 @@
 use cached::{Client, ClientConnection, Response, ResponseBody, ResponseBodyGet, Server, Status};
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
 async fn run_test_server() -> SocketAddr {
@@ -52,6 +52,42 @@ async fn test_setting_a_key_works() {
                 key,
                 value,
                 ttl_since_unix_epoch_in_millis: None
+            }))
+        )
+    );
+}
+
+#[tokio::test]
+async fn test_setting_a_key_with_ttl_works() {
+    let address = run_test_server().await;
+    let conn = ClientConnection::new(address).await;
+    let client = Client::new(conn);
+
+    let key = "ABC".to_string();
+    let value = "1234".to_string();
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(resp.status, Status::KeyNotFound);
+
+    let ttl = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        + 1000;
+    let resp = client
+        .set(key.clone(), value.clone(), Some(ttl))
+        .await
+        .unwrap();
+    assert_eq!(resp.status, Status::Ok);
+
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(
+        resp,
+        Response::new(
+            Status::Ok,
+            ResponseBody::Get(Some(ResponseBodyGet {
+                key,
+                value,
+                ttl_since_unix_epoch_in_millis: Some(ttl)
             }))
         )
     );
