@@ -58,7 +58,7 @@ async fn test_setting_a_key_works() {
 }
 
 #[tokio::test]
-async fn test_setting_a_key_with_ttl_works() {
+async fn test_setting_a_key_with_ttl_in_the_future_works() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
     let client = Client::new(conn);
@@ -91,6 +91,73 @@ async fn test_setting_a_key_with_ttl_works() {
             }))
         )
     );
+}
+
+#[tokio::test]
+async fn test_setting_a_key_with_ttl_in_the_past_works() {
+    let address = run_test_server().await;
+    let conn = ClientConnection::new(address).await;
+    let client = Client::new(conn);
+
+    let key = "ABC".to_string();
+    let value = "1234".to_string();
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(resp.status, Status::KeyNotFound);
+
+    let ttl = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        - 1;
+    let resp = client
+        .set(key.clone(), value.clone(), Some(ttl))
+        .await
+        .unwrap();
+    assert_eq!(resp.status, Status::Ok);
+
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(resp.status, Status::KeyNotFound);
+}
+
+#[tokio::test]
+async fn test_setting_a_key_with_ttl_in_the_future_works_and_then_expires() {
+    let address = run_test_server().await;
+    let conn = ClientConnection::new(address).await;
+    let client = Client::new(conn);
+
+    let key = "ABC".to_string();
+    let value = "1234".to_string();
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(resp.status, Status::KeyNotFound);
+
+    let ttl = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        + 100;
+    let resp = client
+        .set(key.clone(), value.clone(), Some(ttl))
+        .await
+        .unwrap();
+    assert_eq!(resp.status, Status::Ok);
+
+    let resp = client.get(key.clone()).await.unwrap();
+    assert_eq!(
+        resp,
+        Response::new(
+            Status::Ok,
+            ResponseBody::Get(Some(ResponseBodyGet {
+                key: key.clone(),
+                value: value.clone(),
+                ttl_since_unix_epoch_in_millis: Some(ttl)
+            }))
+        )
+    );
+
+    tokio::time::sleep(Duration::from_millis(110)).await;
+
+    let resp = client.get(key).await.unwrap();
+    assert_eq!(resp.status, Status::KeyNotFound);
 }
 
 #[tokio::test]
