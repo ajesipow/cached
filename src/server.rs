@@ -31,7 +31,6 @@ where
 {
     socket_address: A,
     max_connections: Option<usize>,
-    shard_amount: Option<usize>,
 }
 
 impl<A: ToSocketAddrs> ServerBuilder<A> {
@@ -39,18 +38,12 @@ impl<A: ToSocketAddrs> ServerBuilder<A> {
         Self {
             socket_address: addr,
             max_connections: None,
-            shard_amount: None,
         }
     }
 
     /// Controls the maximum number of connections the server have open at any one point.
     pub fn max_connections(mut self, max_connections: usize) -> Self {
         self.max_connections = Some(max_connections);
-        self
-    }
-
-    pub fn shard_amount(mut self, shard_amount: usize) -> Self {
-        self.shard_amount = Some(shard_amount);
         self
     }
 
@@ -67,7 +60,7 @@ impl<A: ToSocketAddrs> ServerBuilder<A> {
         Ok(Server {
             listener,
             port,
-            db: Arc::new(Db::new(self.shard_amount.unwrap_or(128))),
+            db: Arc::new(Db::new()),
             notify_shutdown,
             shutdown_complete_tx,
             shutdown_complete_rx,
@@ -156,7 +149,7 @@ impl Handler {
                 }
             };
             if let Some(r) = request {
-                let response = self.handle_request(r);
+                let response = self.handle_request(r).await;
                 self.conn.write_response(response).await.unwrap();
             } else {
                 break;
@@ -165,10 +158,10 @@ impl Handler {
     }
 
     #[instrument(skip(self))]
-    fn handle_request(&self, req: Request) -> Response {
+    async fn handle_request(&self, req: Request) -> Response {
         match req {
             Request::Get(key) => {
-                let response = match self.db.get(&key) {
+                let response = match self.db.get(&key).await {
                     Some(val) => Response::new(
                         Status::Ok,
                         ResponseBody::Get(Some(ResponseBodyGet {
@@ -186,23 +179,25 @@ impl Handler {
                 value,
                 ttl_since_unix_epoch_in_millis,
             } => {
-                if self.db.contains_key(&key) {
+                if self.db.contains_key(&key).await {
                     Response::new(Status::KeyExists, ResponseBody::Set)
                 } else {
-                    self.db.insert(key, value, ttl_since_unix_epoch_in_millis);
+                    self.db
+                        .insert(key, value, ttl_since_unix_epoch_in_millis)
+                        .await;
                     Response::new(Status::Ok, ResponseBody::Set)
                 }
             }
             Request::Delete(key) => {
-                if !self.db.contains_key(&key) {
+                if !self.db.contains_key(&key).await {
                     Response::new(Status::KeyNotFound, ResponseBody::Delete)
                 } else {
-                    self.db.remove(&key);
+                    self.db.remove(&key).await;
                     Response::new(Status::Ok, ResponseBody::Delete)
                 }
             }
             Request::Flush => {
-                self.db.clear();
+                self.db.clear().await;
                 Response::new(Status::Ok, ResponseBody::Flush)
             }
         }
