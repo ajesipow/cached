@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Db {
     request_sender: mpsc::Sender<DbResponder>,
 }
@@ -137,7 +137,7 @@ impl Db {
 }
 
 #[async_trait]
-pub(crate) trait Database {
+pub(crate) trait Database: Clone {
     type Output;
 
     async fn insert(&self, key: String, value: String, ttl: Option<u128>);
