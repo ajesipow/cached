@@ -2,11 +2,12 @@ use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Db {
-    request_sender: mpsc::Sender<DbResponder>,
+    request_sender: mpsc::Sender<DbRequestWithResponder>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,7 +33,7 @@ enum DbResponse {
     ContainsKey(bool),
 }
 
-struct DbResponder {
+struct DbRequestWithResponder {
     request: DbRequest,
     result_channel: oneshot::Sender<Option<DbResponse>>,
 }
@@ -50,7 +51,7 @@ impl MainDB {
         }
     }
 
-    fn handle_db_request(&mut self, request: DbRequest) -> Option<DbResponse> {
+    fn handle_request(&mut self, request: DbRequest) -> Option<DbResponse> {
         match request {
             DbRequest::Get(key) => self.get(&key).map(DbResponse::Get),
             DbRequest::Insert { key, value, ttl } => {
@@ -61,13 +62,11 @@ impl MainDB {
                 Some(DbResponse::ContainsKey(self.db.contains_key(&key)))
             }
             DbRequest::Remove(key) => {
-                self.db.remove(&key);
-                self.keys_with_ttl.remove(&key);
+                self.remove(&key);
                 None
             }
             DbRequest::Clear => {
-                self.db.clear();
-                self.keys_with_ttl.clear();
+                self.clear();
                 None
             }
         }
@@ -118,21 +117,32 @@ impl MainDB {
             },
         );
     }
+
+    fn remove(&mut self, key: &str) {
+        self.db.remove(key);
+        self.keys_with_ttl.remove(key);
+    }
+
+    fn clear(&mut self) {
+        self.db.clear();
+        self.keys_with_ttl.clear();
+    }
 }
 
 impl Db {
     pub fn new() -> Self {
-        let (tx, mut rx) = mpsc::channel::<DbResponder>(32);
-        let mut main_db = MainDB::new();
-        tokio::spawn(async move {
-            while let Some(responder) = rx.recv().await {
-                let response = main_db.handle_db_request(responder.request);
-                let result_channel = responder.result_channel;
-                let _ = result_channel.send(response);
-            }
-        });
-
+        let (tx, rx) = mpsc::channel::<DbRequestWithResponder>(32);
+        let main_db = MainDB::new();
+        tokio::spawn(Self::run(rx, main_db));
         Self { request_sender: tx }
+    }
+
+    async fn run(mut rx: Receiver<DbRequestWithResponder>, mut main_db: MainDB) {
+        while let Some(responder) = rx.recv().await {
+            let response = main_db.handle_request(responder.request);
+            let result_channel = responder.result_channel;
+            let _ = result_channel.send(response);
+        }
     }
 }
 
@@ -162,7 +172,7 @@ impl Database for Db {
         ttl_since_unix_epoch_in_millis: Option<u128>,
     ) {
         let (tx, _) = oneshot::channel::<Option<DbResponse>>();
-        let db_responder = DbResponder {
+        let db_responder = DbRequestWithResponder {
             request: DbRequest::Insert {
                 key,
                 value,
@@ -175,7 +185,7 @@ impl Database for Db {
 
     async fn get(&self, key: &str) -> Option<Self::Output> {
         let (tx, rx) = oneshot::channel::<Option<DbResponse>>();
-        let db_responder = DbResponder {
+        let db_responder = DbRequestWithResponder {
             request: DbRequest::Get(key.to_string()),
             result_channel: tx,
         };
@@ -188,7 +198,7 @@ impl Database for Db {
 
     async fn remove(&self, key: &str) {
         let (tx, _) = oneshot::channel::<Option<DbResponse>>();
-        let db_responder = DbResponder {
+        let db_responder = DbRequestWithResponder {
             request: DbRequest::Remove(key.to_string()),
             result_channel: tx,
         };
@@ -197,7 +207,7 @@ impl Database for Db {
 
     async fn contains_key(&self, key: &str) -> bool {
         let (tx, rx) = oneshot::channel::<Option<DbResponse>>();
-        let db_responder = DbResponder {
+        let db_responder = DbRequestWithResponder {
             request: DbRequest::ContainsKey(key.to_string()),
             result_channel: tx,
         };
@@ -210,7 +220,7 @@ impl Database for Db {
 
     async fn clear(&self) {
         let (tx, _) = oneshot::channel::<Option<DbResponse>>();
-        let db_responder = DbResponder {
+        let db_responder = DbRequestWithResponder {
             request: DbRequest::Clear,
             result_channel: tx,
         };
@@ -224,7 +234,7 @@ mod test {
     use std::time::Duration;
 
     #[tokio::test]
-    async fn test_ttl_elapsed_does_not_return_value() {
+    async fn test_ttl_elapsed_does_not_return_value_from_db() {
         let db = Db::new();
         let key = "Hello";
         let value = "World";
@@ -236,38 +246,54 @@ mod test {
         db.insert(key.to_string(), value.to_string(), Some(valid_until))
             .await;
 
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        // Must not return the key as its TTL expired already
+        assert!(db.get(key).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_elapsed_does_not_return_value_from_main_db() {
+        let mut db = MainDB::new();
+        let key = "Hello";
+        let value = "World";
+        let valid_until = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+            + 1;
+        db.insert(key.to_string(), value.to_string(), Some(valid_until));
+
         // Ensure key is in main db and set of keys with TTL
-        assert!(db.main_db.get(key).is_some());
+        assert!(db.db.get(key).is_some());
         assert!(db.keys_with_ttl.get(key).is_some());
 
         tokio::time::sleep(Duration::from_millis(10)).await;
         // Must not return the key as its TTL expired already
-        assert!(db.get(key).await.is_none());
+        assert!(db.get(key).is_none());
 
         // Ensure everything is cleaned up
-        assert!(db.main_db.get(key).is_none());
+        assert!(db.db.get(key).is_none());
         assert!(db.keys_with_ttl.get(key).is_none());
     }
 
     #[tokio::test]
     async fn test_ttl_in_past_does_not_store_value() {
-        let db = Db::new();
+        let mut db = MainDB::new();
         let key = "Hello";
         let value = "World";
         let valid_until_now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
-        db.insert(key.to_string(), value.to_string(), Some(valid_until_now))
-            .await;
+        db.insert(key.to_string(), value.to_string(), Some(valid_until_now));
 
         // Ensure key is in main db and set of keys with TTL
-        assert!(db.main_db.get(key).is_none());
+        assert!(db.db.get(key).is_none());
         assert!(db.keys_with_ttl.get(key).is_none());
     }
 
     #[tokio::test]
-    async fn test_ttl_in_future_returns_value() {
+    async fn test_ttl_in_future_returns_value_db() {
         let db = Db::new();
         let key = "Hello";
         let value = "World";
@@ -279,39 +305,54 @@ mod test {
         db.insert(key.to_string(), value.to_string(), Some(valid_until_now))
             .await;
 
+        // Must not return the key as its TTL expired already
+        assert!(db.get(key).await.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_in_future_returns_value_main_db() {
+        let mut db = MainDB::new();
+        let key = "Hello";
+        let value = "World";
+        let valid_until_now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+            + 1;
+        db.insert(key.to_string(), value.to_string(), Some(valid_until_now));
+
         // Ensure key is in main db and set of keys with TTL
-        assert!(db.main_db.get(key).is_some());
+        assert!(db.db.get(key).is_some());
         assert!(db.keys_with_ttl.get(key).is_some());
 
         // Must not return the key as its TTL expired already
-        assert!(db.get(key).await.is_some());
+        assert!(db.get(key).is_some());
 
         // Ensure everything is still present
-        assert!(db.main_db.get(key).is_some());
+        assert!(db.db.get(key).is_some());
         assert!(db.keys_with_ttl.get(key).is_some());
     }
 
     #[tokio::test]
-    async fn test_removing_key_is_also_removed_from_ttl_set() {
-        let db = Db::new();
+    async fn test_removing_key_is_also_removed_from_ttl_set_main_db() {
+        let mut db = MainDB::new();
         let key = "Hello";
         let value = "World";
         let valid_until_now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis()
-            + 1;
-        db.insert(key.to_string(), value.to_string(), Some(valid_until_now))
-            .await;
+            + 100;
+        db.insert(key.to_string(), value.to_string(), Some(valid_until_now));
 
         // Ensure key is in main db and set of keys with TTL
-        assert!(db.main_db.get(key).is_some());
+        assert!(db.db.get(key).is_some());
         assert!(db.keys_with_ttl.get(key).is_some());
 
-        db.remove(key).await;
+        db.remove(key);
 
         // Ensure everything is removed
-        assert!(db.main_db.get(key).is_none());
+        assert!(db.db.get(key).is_none());
         assert!(db.keys_with_ttl.get(key).is_none());
     }
 
@@ -336,7 +377,19 @@ mod test {
 
         assert!(db.contains_key(key).await);
         db.clear().await;
-        assert_eq!(db.main_db.len(), 0);
+        assert!(!db.contains_key(key).await);
+    }
+
+    #[tokio::test]
+    async fn test_clearing_db_works_main_db() {
+        let mut db = MainDB::new();
+        let key = "Hello";
+        let value = "World";
+        db.insert(key.to_string(), value.to_string(), None);
+
+        assert!(db.db.contains_key(key));
+        db.clear();
+        assert_eq!(db.db.len(), 0);
         assert_eq!(db.keys_with_ttl.len(), 0);
     }
 }

@@ -160,20 +160,17 @@ impl Handler {
     #[instrument(skip(self))]
     async fn handle_request(&self, req: Request) -> Response {
         match req {
-            Request::Get(key) => {
-                let response = match self.db.get(&key).await {
-                    Some(val) => Response::new(
-                        Status::Ok,
-                        ResponseBody::Get(Some(ResponseBodyGet {
-                            key,
-                            value: val.value.to_string(),
-                            ttl_since_unix_epoch_in_millis: val.ttl_since_unix_epoch_in_millis,
-                        })),
-                    ),
-                    None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
-                };
-                response
-            }
+            Request::Get(key) => match self.db.get(&key).await {
+                Some(val) => Response::new(
+                    Status::Ok,
+                    ResponseBody::Get(Some(ResponseBodyGet {
+                        key,
+                        value: val.value.to_string(),
+                        ttl_since_unix_epoch_in_millis: val.ttl_since_unix_epoch_in_millis,
+                    })),
+                ),
+                None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
+            },
             Request::Set {
                 key,
                 value,

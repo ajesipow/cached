@@ -6,7 +6,7 @@ use crate::frame::header::Header;
 use crate::frame::header::RequestHeader;
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Request {
     Get(String),
     Set {

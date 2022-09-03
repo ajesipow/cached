@@ -26,7 +26,7 @@ impl TryFrom<u8> for Status {
 }
 
 #[derive(Debug, Copy, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 #[repr(u8)]
 pub enum OpCode {
     Set = 1,

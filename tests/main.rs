@@ -7,7 +7,6 @@ async fn run_test_server() -> SocketAddr {
     let host = "127.0.0.1";
     let server = Server::builder(format!("{host}:0"))
         .max_connections(1)
-        .shard_amount(2)
         .try_build()
         .await
         .unwrap();
