@@ -80,7 +80,7 @@ impl Server {
 
     pub async fn run(mut self, shutdown: impl Future) {
         tokio::select! {
-            res = (&mut self).serve() => {
+            res = self.serve() => {
                 if let Err(e) = res {
                     error!("Error: {:?}", e);
                 }
