@@ -1,7 +1,7 @@
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Error {
     Parse(Parse),
     Frame(FrameError),
@@ -9,7 +9,7 @@ pub enum Error {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Parse {
     KeyMissing,
     ValueMissing,
@@ -19,7 +19,7 @@ pub enum Parse {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum FrameError {
     Incomplete,
     InvalidOpCode,
@@ -29,7 +29,7 @@ pub enum FrameError {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum ConnectionError {
     Read(String),
     ResetByPeer,
