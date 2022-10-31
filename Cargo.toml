@@ -8,8 +8,7 @@ edition = "2021"
 path = "src/lib.rs"
 
 [dependencies]
-tokio = { version = "1.17.0", features=["full"] }
-console-subscriber = "0.1"
+tokio = { version = "1.17.0", features=["sync", "rt", "signal", "net", "time", "io-util", "macros"] }
 async-trait = "0.1"
 bytes = "1.1.0"
 tracing = "0.1"
