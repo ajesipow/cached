@@ -1,0 +1,18 @@
+[package]
+name = "cached"
+version = "0.1.0"
+authors = ["Alexander Jesipow"]
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1.17.0", features=["sync", "rt", "signal", "net", "time", "io-util", "macros"] }
+async-trait = "0.1"
+bytes = "1.1.0"
+tracing = "0.1"
+
+
+[dev-dependencies]
+rstest = "0.12.0"
