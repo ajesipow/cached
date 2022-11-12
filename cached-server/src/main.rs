@@ -22,11 +22,13 @@ struct Cli {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+    // Clear terminal output and position the cursor at row 1, column 1
+    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", BANNER);
 
     let host = cli.host;
     let addr = format!("{}:{}", host, cli.port);
     let server = Server::new().bind(addr).await.unwrap();
-    println!("Server running on {}:{}", host, server.port());
+    println!("Cached server running on {}:{}", host, server.port());
     server.run().await;
 }
