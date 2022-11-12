@@ -21,11 +21,13 @@ pub struct ClientConnection {
 }
 
 impl ClientConnection {
+    // TODO method to set channel size
     /// Panics if cannot connect to addr.
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let (tx, mut rx) = mpsc::channel::<RequestResponder>(32);
         let stream = TcpStream::connect(addr).await.unwrap();
         let mut conn = Connection::new(stream);
+        // TODO when does this shutdown?
         spawn(async move {
             while let Some(request_responder) = rx.recv().await {
                 let responder = request_responder.responder;
