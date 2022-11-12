@@ -51,6 +51,7 @@ impl Server {
         }
     }
 
+    /// Binds to the address.
     pub async fn bind<A: ToSocketAddrs>(mut self, addr: A) -> error::Result<Self> {
         let listener = TcpListener::bind(addr)
             .await
@@ -70,12 +71,11 @@ impl Server {
         self
     }
 
-    pub fn port(&self) -> error::Result<u16> {
-        self.port.ok_or_else(|| {
-            Error::Connection(ConnectionError::NoConnection(
-                "No port available, did you bind the server?".to_string(),
-            ))
-        })
+    /// Returns the port the server is running on.
+    /// This is useful for testing, when the server was bound to port 0.
+    pub fn port(&self) -> u16 {
+        self.port
+            .expect("No port available, did you bind the server?")
     }
 
     /// Panics if not socket address was provided (via `bind`).

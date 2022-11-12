@@ -10,7 +10,7 @@ async fn run_test_server() -> SocketAddr {
         .bind(format!("{host}:0"))
         .await
         .unwrap();
-    let server_port = server.port().unwrap();
+    let server_port = server.port();
     tokio::spawn(server.run());
     format!("{host}:{server_port}")
         .parse()
