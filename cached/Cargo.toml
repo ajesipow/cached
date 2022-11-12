@@ -9,7 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 tokio = { version = "1.17.0", features=["sync", "rt", "signal", "net", "time", "io-util", "macros"] }
-async-trait = "0.1"
+async-trait = "0.1.58"
 bytes = "1.1.0"
 tracing = "0.1"
 
