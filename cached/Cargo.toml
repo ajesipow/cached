@@ -3,7 +3,6 @@ name = "cached"
 version = "0.1.0"
 authors = ["Alexander Jesipow"]
 edition = "2021"
-resolver = "2"
 
 [lib]
 path = "src/lib.rs"
