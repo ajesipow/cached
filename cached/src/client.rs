@@ -85,7 +85,7 @@ impl Client {
     }
 
     async fn handle_request(&self, request: Request) -> Result<Response> {
-        let (tx, rx) = tokio::sync::oneshot::channel();
+        let (tx, rx) = oneshot::channel();
         self.conn
             .send(RequestResponder {
                 request,

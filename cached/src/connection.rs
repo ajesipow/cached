@@ -11,7 +11,7 @@ use tokio::net::TcpStream;
 use tracing::instrument;
 
 #[derive(Debug)]
-pub struct Connection {
+pub(crate) struct Connection {
     stream: BufWriter<TcpStream>,
     buffer: BytesMut,
 }

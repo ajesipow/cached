@@ -119,7 +119,7 @@ impl Server {
 }
 
 impl ServerInner {
-    async fn serve(&mut self) -> crate::error::Result<()> {
+    async fn serve(&mut self) -> error::Result<()> {
         loop {
             self.connection_limit
                 .acquire()
