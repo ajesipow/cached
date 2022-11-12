@@ -38,8 +38,8 @@ impl ClientConnection {
         Self { sender: tx }
     }
 
-    pub fn get(self) -> mpsc::Sender<RequestResponder> {
-        self.sender
+    pub fn get(&self) -> mpsc::Sender<RequestResponder> {
+        self.sender.clone()
     }
 }
 
@@ -49,7 +49,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(conn: ClientConnection) -> Self {
+    pub fn new(conn: &ClientConnection) -> Self {
         Self { conn: conn.get() }
     }
 
