@@ -5,13 +5,13 @@ use tokio::time::timeout;
 
 async fn run_test_server() -> SocketAddr {
     let host = "127.0.0.1";
-    let server = Server::builder(format!("{host}:0"))
+    let server = Server::new()
         .max_connections(1)
-        .try_build()
+        .bind(format!("{host}:0"))
         .await
         .unwrap();
-    let server_port = server.port();
-    tokio::spawn(server.run(tokio::signal::ctrl_c()));
+    let server_port = server.port().unwrap();
+    tokio::spawn(server.run());
     format!("{host}:{server_port}")
         .parse()
         .expect("Could not parse address as SocketAddr")

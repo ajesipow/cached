@@ -40,4 +40,5 @@ pub enum ConnectionError {
     AcquireSemaphore,
     Bind,
     LocalAddr,
+    NoConnection(String),
 }

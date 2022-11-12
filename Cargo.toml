@@ -1,2 +1,2 @@
 [workspace]
-members = ["cached"]
+members = ["cached", "cached-server"]
