@@ -17,7 +17,7 @@ pub fn get_key(c: &mut Criterion) {
                 .await;
         });
         let client_connection = ClientConnection::new("127.0.0.1:6599").await;
-        let client = Client::new(&client_connection);
+        let client = Client::with_connection(&client_connection);
         client
             .set("hello".to_string(), "world".to_string(), None)
             .await

@@ -49,7 +49,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(conn: &ClientConnection) -> Self {
+    pub fn with_connection(conn: &ClientConnection) -> Self {
         Self { conn: conn.get() }
     }
 

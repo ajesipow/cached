@@ -21,7 +21,7 @@ async fn run_test_server() -> SocketAddr {
 async fn test_getting_a_non_existing_key_fails() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let resp = client.get(key.clone()).await.unwrap();
@@ -32,7 +32,7 @@ async fn test_getting_a_non_existing_key_fails() {
 async fn test_setting_a_key_works() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -60,7 +60,7 @@ async fn test_setting_a_key_works() {
 async fn test_setting_a_key_with_ttl_in_the_future_works() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -96,7 +96,7 @@ async fn test_setting_a_key_with_ttl_in_the_future_works() {
 async fn test_setting_a_key_with_ttl_in_the_past_works() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -122,7 +122,7 @@ async fn test_setting_a_key_with_ttl_in_the_past_works() {
 async fn test_setting_a_key_with_ttl_in_the_future_works_and_then_expires() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -163,7 +163,7 @@ async fn test_setting_a_key_with_ttl_in_the_future_works_and_then_expires() {
 async fn test_setting_the_same_key_twice_fails() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -194,7 +194,7 @@ async fn test_setting_the_same_key_twice_fails() {
 async fn test_deleting_a_key_works() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -228,7 +228,7 @@ async fn test_deleting_a_key_works() {
 async fn test_deleting_a_non_existing_key_fails() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
 
@@ -240,7 +240,7 @@ async fn test_deleting_a_non_existing_key_fails() {
 async fn test_flushing_works() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key = "ABC".to_string();
     let value = "1234".to_string();
@@ -274,7 +274,7 @@ async fn test_flushing_works() {
 async fn test_setting_and_getting_keys_concurrently_works() {
     let address = run_test_server().await;
     let conn = ClientConnection::new(address).await;
-    let client = Client::new(&conn);
+    let client = Client::with_connection(&conn);
 
     let key_1 = "ABC".to_string();
     let key_2 = "DEF".to_string();
@@ -317,9 +317,9 @@ async fn test_setting_and_getting_keys_concurrently_works() {
 async fn test_max_connections_limit() {
     let address = run_test_server().await;
     let conn_1 = ClientConnection::new(address).await;
-    let client_1 = Client::new(&conn_1);
+    let client_1 = Client::with_connection(&conn_1);
     let conn_2 = ClientConnection::new(address).await;
-    let client_2 = Client::new(&conn_2);
+    let client_2 = Client::with_connection(&conn_2);
 
     let key = "ABC".to_string();
     let resp = client_1.get(key.clone()).await.unwrap();
