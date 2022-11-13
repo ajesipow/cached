@@ -1,5 +1,7 @@
 use cached::{Client, ClientConnection, Server};
 use criterion::{criterion_group, criterion_main, Criterion};
+use futures::future::join_all;
+use tokio::time::Instant;
 
 pub fn get_key(c: &mut Criterion) {
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -30,37 +32,48 @@ pub fn get_key(c: &mut Criterion) {
             .iter(|| async { client.get("hello".to_string()).await.unwrap() })
     });
 }
-//
-// pub fn get_same_key_in_parallel(c: &mut Criterion) {
-//     let rt = tokio::runtime::Builder::new_multi_thread()
-//         .enable_all()
-//         .build()
-//         .unwrap();
-//
-//     let client = rt.block_on(async {
-//         tokio::spawn(async {
-//             Server::new()
-//                 .bind("127.0.0.1:6599")
-//                 .await
-//                 .unwrap()
-//                 .run()
-//                 .await;
-//         });
-//         let client_connection = ClientConnection::new("127.0.0.1:6599").await;
-//         let client = Client::new(&client_connection);
-//         client
-//             .set("hello".to_string(), "world".to_string(), None)
-//             .await
-//             .unwrap();
-//         let clients =
-//         client
-//     });
-//
-//     c.bench_function("get", |b| {
-//         b.to_async(&rt)
-//             .iter(|| async { client.get("hello".to_string()).await.unwrap() })
-//     });
-// }
 
-criterion_group!(benches, get_key);
+pub fn get_same_key_in_parallel(c: &mut Criterion) {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    rt.block_on(async {
+        tokio::spawn(async {
+            Server::new()
+                .bind("127.0.0.1:6599")
+                .await
+                .unwrap()
+                .run()
+                .await;
+        });
+        let client = Client::new("127.0.0.1:6599").await;
+        client
+            .set("hello".to_string(), "world".to_string(), None)
+            .await
+            .unwrap();
+        drop(client);
+    });
+
+    c.bench_function("get bursts single client", |b| {
+        b.to_async(&rt).iter_custom(|iters| async move {
+            let client = Client::new("127.0.0.1:6599").await;
+            let client_futures = (0..iters)
+                .into_iter()
+                .map(|_| client.get("hello".to_string()));
+            let start = Instant::now();
+            let responses = join_all(client_futures).await;
+            let elapsed = start.elapsed();
+
+            let failed = responses.iter().filter(|resp| resp.is_err()).count();
+            if failed > 0 {
+                eprintln!("failed {} requests (might be bench timeout)", failed);
+            };
+            elapsed
+        })
+    });
+}
+
+criterion_group!(benches, get_key, get_same_key_in_parallel);
 criterion_main!(benches);
