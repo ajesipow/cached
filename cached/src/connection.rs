@@ -181,16 +181,32 @@ mod test {
     use crate::primitives::OpCode;
     use bytes::BufMut;
 
+    #[global_allocator]
+    static ALLOC: dhat::Alloc = dhat::Alloc;
+
     #[test]
     fn test_parsing_request_frame_works() {
+        let _profiler = dhat::Profiler::builder().testing().build();
         let data = "\u{1}\0\u{3}\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\u{1e}ABC1234";
         let mut bytes = BytesMut::with_capacity(30);
         bytes.put_slice(data.as_bytes());
+        // Get the baseline for setup
+        let stats = dhat::HeapStats::get();
+        dhat::assert_eq!(stats.total_blocks, 1);
+        dhat::assert_eq!(stats.total_bytes, 30);
+
+        // The actual data we're interested in (subtract the baseline)
+        let parsed_frame = parse_frame(&mut bytes);
+        let stats = dhat::HeapStats::get();
+        dhat::assert_eq!(stats.total_blocks, 5);
+        dhat::assert_eq!(stats.total_bytes, 83);
+
+
         let expected_frame = RequestFrame {
             header: RequestHeader::parse(OpCode::Set, Some("ABC"), Some("1234"), None).unwrap(),
             key: Some("ABC".to_string()),
             value: Some("1234".to_string()),
         };
-        assert_eq!(parse_frame(&mut bytes).unwrap(), Some(expected_frame));
+        assert_eq!(parsed_frame.unwrap(), Some(expected_frame));
     }
 }
