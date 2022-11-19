@@ -15,7 +15,7 @@ pub(crate) trait Frame {
     fn get_key(&self) -> Option<&str>;
     fn get_value(&self) -> Option<&str>;
 
-    fn check(src: &mut Cursor<&[u8]>) -> Result<usize> {
+    fn check(src: &mut Cursor<&[u8]>) -> Result<Self::Header> {
         if src.remaining() < HEADER_SIZE_BYTES as usize {
             return Err(Error::Frame(FrameError::Incomplete));
         }
@@ -24,14 +24,13 @@ pub(crate) trait Frame {
         if src.remaining() < header.get_total_frame_length() as usize - HEADER_SIZE_BYTES as usize {
             return Err(Error::Frame(FrameError::Incomplete));
         }
-        Ok(header.get_total_frame_length() as usize)
+        Ok(header)
     }
 
-    fn parse(src: &mut Cursor<&[u8]>) -> Result<Self>
+    fn parse(src: &mut Cursor<&[u8]>, header: Self::Header) -> Result<Self>
     where
         Self: Sized,
     {
-        let header = Self::Header::try_from(src.copy_to_bytes(HEADER_SIZE_BYTES as usize))?;
         let key_length = header.get_key_length();
         let value_length =
             header.get_total_frame_length() - HEADER_SIZE_BYTES as u32 - key_length as u32;

@@ -43,7 +43,7 @@ impl ClientConnection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client {
     conn: mpsc::Sender<RequestResponder>,
 }

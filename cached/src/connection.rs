@@ -163,10 +163,9 @@ where
 {
     let mut buf = Cursor::new(&buffer[..]);
     match F::check(&mut buf) {
-        Ok(frame_length) => {
-            buf.set_position(0);
-            let frame = F::parse(&mut buf)?;
-            buffer.advance(frame_length);
+        Ok(header) => {
+            let frame = F::parse(&mut buf, header)?;
+            buffer.advance(frame.get_header().get_total_frame_length() as usize);
             Ok(Some(frame))
         }
         Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
@@ -198,9 +197,8 @@ mod test {
         // The actual data we're interested in (subtract the baseline)
         let parsed_frame = parse_frame(&mut bytes);
         let stats = dhat::HeapStats::get();
-        dhat::assert_eq!(stats.total_blocks, 5);
-        dhat::assert_eq!(stats.total_bytes, 83);
-
+        dhat::assert_eq!(stats.total_blocks, 4);
+        dhat::assert_eq!(stats.total_bytes, 60);
 
         let expected_frame = RequestFrame {
             header: RequestHeader::parse(OpCode::Set, Some("ABC"), Some("1234"), None).unwrap(),
