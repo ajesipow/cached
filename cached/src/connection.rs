@@ -173,3 +173,24 @@ where
         Err(e) => Err(e),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::frame::header::RequestHeader;
+    use crate::primitives::OpCode;
+    use bytes::BufMut;
+
+    #[test]
+    fn test_parsing_request_frame_works() {
+        let data = "\u{1}\0\u{3}\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\u{1e}ABC1234";
+        let mut bytes = BytesMut::with_capacity(30);
+        bytes.put_slice(data.as_bytes());
+        let expected_frame = RequestFrame {
+            header: RequestHeader::parse(OpCode::Set, Some("ABC"), Some("1234"), None).unwrap(),
+            key: Some("ABC".to_string()),
+            value: Some("1234".to_string()),
+        };
+        assert_eq!(parse_frame(&mut bytes).unwrap(), Some(expected_frame));
+    }
+}
