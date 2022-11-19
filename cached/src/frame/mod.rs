@@ -11,9 +11,12 @@ pub(crate) trait Frame {
     type Header: Header + TryFrom<Bytes, Error = Error> + Debug;
 
     fn new(header: Self::Header, key: Option<String>, value: Option<String>) -> Self;
-    fn get_header(&self) -> &Self::Header;
-    fn get_key(&self) -> Option<&str>;
-    fn get_value(&self) -> Option<&str>;
+    fn header(&self) -> &Self::Header;
+    fn key(&self) -> Option<&str>;
+    fn value(&self) -> Option<&str>;
+    fn total_frame_length(&self) -> u32 {
+        self.header().get_total_frame_length()
+    }
 
     fn check(src: &mut Cursor<&[u8]>) -> Result<Self::Header> {
         if src.remaining() < HEADER_SIZE_BYTES as usize {
@@ -60,15 +63,15 @@ impl Frame for ResponseFrame {
         Self { header, key, value }
     }
 
-    fn get_header(&self) -> &Self::Header {
+    fn header(&self) -> &Self::Header {
         &self.header
     }
 
-    fn get_key(&self) -> Option<&str> {
+    fn key(&self) -> Option<&str> {
         self.key.as_deref()
     }
 
-    fn get_value(&self) -> Option<&str> {
+    fn value(&self) -> Option<&str> {
         self.value.as_deref()
     }
 }
@@ -87,15 +90,15 @@ impl Frame for RequestFrame {
     fn new(header: Self::Header, key: Option<String>, value: Option<String>) -> Self {
         Self { header, key, value }
     }
-    fn get_header(&self) -> &Self::Header {
+    fn header(&self) -> &Self::Header {
         &self.header
     }
 
-    fn get_key(&self) -> Option<&str> {
+    fn key(&self) -> Option<&str> {
         self.key.as_deref()
     }
 
-    fn get_value(&self) -> Option<&str> {
+    fn value(&self) -> Option<&str> {
         self.value.as_deref()
     }
 }

@@ -112,37 +112,37 @@ impl Connection {
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         // TODO re-implement this elsewhere, the order etc is very specific to frame and should live there probably
         self.stream
-            .write_u8(frame.get_header().get_op_code() as u8)
+            .write_u8(frame.header().get_op_code() as u8)
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u8(frame.get_header().get_status_or_padding())
+            .write_u8(frame.header().get_status_or_padding())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u8(frame.get_header().get_key_length())
+            .write_u8(frame.header().get_key_length())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
             .write_u128(
                 frame
-                    .get_header()
+                    .header()
                     .get_ttl_since_unix_epoch_in_millis()
                     .into_inner(),
             )
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u32(frame.get_header().get_total_frame_length())
+            .write_u32(frame.header().get_total_frame_length())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
-        if let Some(key) = frame.get_key() {
+        if let Some(key) = frame.key() {
             self.stream
                 .write_all(key.as_bytes())
                 .await
                 .map_err(|_| Error::Connection(ConnectionError::Write))?;
         }
-        if let Some(value) = frame.get_value() {
+        if let Some(value) = frame.value() {
             self.stream
                 .write_all(value.as_bytes())
                 .await
@@ -165,7 +165,7 @@ where
     match F::check(&mut buf) {
         Ok(header) => {
             let frame = F::parse(&mut buf, header)?;
-            buffer.advance(frame.get_header().get_total_frame_length() as usize);
+            buffer.advance(frame.total_frame_length() as usize);
             Ok(Some(frame))
         }
         Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
