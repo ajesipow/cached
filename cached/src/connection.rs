@@ -97,17 +97,7 @@ impl Connection {
     where
         F: Frame + Debug,
     {
-        let mut buf = Cursor::new(&self.buffer[..]);
-        match F::check(&mut buf) {
-            Ok(frame_length) => {
-                buf.set_position(0);
-                let frame = F::parse(&mut buf)?;
-                self.buffer.advance(frame_length);
-                Ok(Some(frame))
-            }
-            Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
-            Err(e) => Err(e),
-        }
+        parse_frame(&mut self.buffer)
     }
 
     async fn write_frame<F>(&mut self, frame: &F) -> Result<()>
@@ -163,5 +153,23 @@ impl Connection {
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         Ok(())
+    }
+}
+
+fn parse_frame<F>(buffer: &mut BytesMut) -> Result<Option<F>>
+where
+    F: Frame,
+    F: Debug,
+{
+    let mut buf = Cursor::new(&buffer[..]);
+    match F::check(&mut buf) {
+        Ok(frame_length) => {
+            buf.set_position(0);
+            let frame = F::parse(&mut buf)?;
+            buffer.advance(frame_length);
+            Ok(Some(frame))
+        }
+        Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
+        Err(e) => Err(e),
     }
 }
