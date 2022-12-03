@@ -1,5 +1,7 @@
 use cached::Server;
 use clap::Parser;
+use tracing_chrome::ChromeLayerBuilder;
+use tracing_subscriber::{registry::Registry, prelude::*};
 
 const BANNER: &str = r#"
  ______     ______     ______     __  __     ______     _____
@@ -25,6 +27,9 @@ async fn main() {
     // Clear terminal output and position the cursor at row 1, column 1
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", BANNER);
+
+    let (chrome_layer, _guard) = ChromeLayerBuilder::new().build();
+    tracing_subscriber::registry().with(chrome_layer).init();
 
     let host = cli.host;
     let addr = format!("{}:{}", host, cli.port);
