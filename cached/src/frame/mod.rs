@@ -1,6 +1,5 @@
-use bytes::{Buf, Bytes};
+use bytes::{Buf, Bytes, BytesMut};
 use std::fmt::Debug;
-use std::io::Cursor;
 
 use crate::error::{Error, FrameError, Result};
 
@@ -18,22 +17,22 @@ pub(crate) trait Frame {
         self.header().get_total_frame_length()
     }
 
-    fn check(src: &mut Cursor<&[u8]>) -> Result<Self::Header> {
-        if src.remaining() < HEADER_SIZE_BYTES as usize {
+    fn check(src: &[u8]) -> Result<usize> {
+        if src.len() < HEADER_SIZE_BYTES as usize {
             return Err(Error::Frame(FrameError::Incomplete));
         }
-        let header = Self::Header::try_from(src.copy_to_bytes(HEADER_SIZE_BYTES as usize))?;
-
-        if src.remaining() < header.get_total_frame_length() as usize - HEADER_SIZE_BYTES as usize {
+        let total_frame_length = u32::from_be_bytes(src[19..23].try_into().unwrap()) as usize;
+        if src.len() < total_frame_length {
             return Err(Error::Frame(FrameError::Incomplete));
         }
-        Ok(header)
+        Ok(total_frame_length)
     }
 
-    fn parse(src: &mut Cursor<&[u8]>, header: Self::Header) -> Result<Self>
+    fn parse(src: &mut BytesMut) -> Result<Self>
     where
         Self: Sized,
     {
+        let header = Self::Header::try_from(src.copy_to_bytes(HEADER_SIZE_BYTES as usize))?;
         let key_length = header.get_key_length();
         let value_length =
             header.get_total_frame_length() - HEADER_SIZE_BYTES as u32 - key_length as u32;
@@ -103,12 +102,10 @@ impl Frame for RequestFrame {
     }
 }
 
-fn get_string(src: &mut Cursor<&[u8]>, len: u32) -> Result<String> {
+fn get_string(src: &mut BytesMut, len: u32) -> Result<String> {
     if src.remaining() < len as usize {
         return Err(Error::Frame(FrameError::Incomplete));
     }
-    let value = String::from_utf8_lossy(src.take(len as usize).chunk()).to_string();
-    let new_position = src.position() + len as u64;
-    src.set_position(new_position);
+    let value = String::from_utf8_lossy(src.split_to(len as usize).chunk()).to_string();
     Ok(value)
 }
