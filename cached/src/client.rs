@@ -92,6 +92,11 @@ impl Client {
         self.handle_request(request).await
     }
 
+    #[instrument(skip(self))]
+    pub async fn send(&self, request: Request) -> Result<Response> {
+        self.handle_request(request).await
+    }
+
     async fn handle_request(&self, request: Request) -> Result<Response> {
         let (tx, rx) = oneshot::channel();
         self.conn
