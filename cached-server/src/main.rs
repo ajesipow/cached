@@ -1,7 +1,7 @@
 use cached::Server;
 use clap::Parser;
 use tracing_chrome::ChromeLayerBuilder;
-use tracing_subscriber::{registry::Registry, prelude::*};
+use tracing_subscriber::prelude::*;
 
 const BANNER: &str = r#"
  ______     ______     ______     __  __     ______     _____
