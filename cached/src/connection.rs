@@ -64,6 +64,7 @@ impl Connection {
         self.write_frame(&frame).await
     }
 
+    #[instrument(skip(self))]
     async fn read_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
@@ -92,6 +93,7 @@ impl Connection {
         }
     }
 
+    #[instrument(skip(self))]
     fn parse_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
@@ -155,6 +157,7 @@ impl Connection {
     }
 }
 
+#[instrument(skip(buffer))]
 fn parse_frame<F>(buffer: &mut BytesMut) -> Result<Option<F>>
 where
     F: Frame,
