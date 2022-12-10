@@ -1,6 +1,8 @@
 use crate::error::{Error, Parse, Result};
 use crate::frame::{Frame, ResponseFrame};
 use crate::primitives::{OpCode, Status};
+use std::fmt;
+use std::fmt::Formatter;
 
 use crate::frame::header::{Header, ResponseHeader};
 
@@ -8,6 +10,15 @@ use crate::frame::header::{Header, ResponseHeader};
 pub struct Response {
     pub status: Status,
     pub body: ResponseBody,
+}
+
+impl fmt::Display for Response {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.status {
+            Status::Ok => write!(f, "{}", self.body),
+            _ => write!(f, "{}", self.status),
+        }
+    }
 }
 
 impl Response {
@@ -24,11 +35,34 @@ pub enum ResponseBody {
     Flush,
 }
 
+impl fmt::Display for ResponseBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Delete => write!(f, "DELETE"),
+            Self::Set => write!(f, "SET"),
+            Self::Flush => write!(f, "FLUSH"),
+            Self::Get(maybe_get) => match maybe_get {
+                None => write!(f, "GET None"),
+                Some(get_resp) => write!(f, "{}", get_resp),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct ResponseBodyGet {
     pub key: String,
     pub value: String,
     pub ttl_since_unix_epoch_in_millis: Option<u128>,
+}
+
+impl fmt::Display for ResponseBodyGet {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.ttl_since_unix_epoch_in_millis {
+            None => write!(f, "\"{}\"", self.value),
+            Some(ttl) => write!(f, "{} EXP {}", self.value, ttl),
+        }
+    }
 }
 
 impl TryFrom<Response> for ResponseFrame {
