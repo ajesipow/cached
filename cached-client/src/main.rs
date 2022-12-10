@@ -1,8 +1,9 @@
 mod input_parsing;
 
-use crate::input_parsing::parse_input;
+use crate::input_parsing::{convert_error, parse_input};
 use cached::Client;
 use clap::Parser;
+use nom::Err;
 use std::io::Write;
 
 #[derive(Parser)]
@@ -33,7 +34,15 @@ async fn main() {
                 },
                 None => break,
             },
-            Err(_) => eprintln!("Invalid command"),
+            Err(Err::Failure(f)) => match convert_error(f) {
+                Some(context) => {
+                    eprintln!("{}", context);
+                }
+                None => eprintln!("Invalid command"),
+            },
+            _ => {
+                eprintln!("Invalid command")
+            }
         }
     }
 }
