@@ -10,6 +10,7 @@ use crate::db::{Database, Db};
 use crate::error::ConnectionError;
 use crate::shutdown::Shutdown;
 use crate::{error, Error};
+#[cfg(feature = "tracing")]
 use tracing::{debug, error, info, instrument};
 
 #[derive(Debug)]
@@ -94,12 +95,14 @@ impl Server {
         };
 
         tokio::select! {
-            res = server.serve() => {
-                if let Err(e) = res {
+            _res = server.serve() => {
+                #[cfg(feature = "tracing")]
+                if let Err(e) = _res {
                     error!("Error: {:?}", e);
                 }
             }
             _ = tokio::signal::ctrl_c() => {
+                #[cfg(feature = "tracing")]
                 info!("Shutting down");
             }
         }
@@ -160,6 +163,7 @@ impl Handler {
             let request = tokio::select! {
                 res = self.conn.read_request() => res.unwrap(),
                 _ = self.shutdown.recv() => {
+                    #[cfg(feature = "tracing")]
                     debug!("Received shutdown signal.");
                     return
                 }
@@ -173,7 +177,7 @@ impl Handler {
         }
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     async fn handle_request(&self, req: Request) -> Response {
         match req {
             Request::Get(key) => match self.db.get(&key).await {
@@ -220,6 +224,7 @@ impl Handler {
 impl Drop for Handler {
     fn drop(&mut self) {
         self.connection_limit.add_permits(1);
+        #[cfg(feature = "tracing")]
         debug!("Added permit back to connection semaphore.");
     }
 }
