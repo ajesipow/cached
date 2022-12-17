@@ -1,6 +1,8 @@
 use crate::error::Error;
 use crate::error::FrameError;
 use crate::error::Result;
+use std::fmt;
+use std::fmt::Formatter;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
@@ -9,6 +11,17 @@ pub enum Status {
     KeyNotFound = 1,
     KeyExists = 2,
     InternalError = 3,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ok => write!(f, "OK"),
+            Self::KeyNotFound => write!(f, "Key not found"),
+            Self::KeyExists => write!(f, "Key exists"),
+            Self::InternalError => write!(f, "INTERNAL ERROR"),
+        }
+    }
 }
 
 impl TryFrom<u8> for Status {

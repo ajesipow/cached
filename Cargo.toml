@@ -1,2 +1,3 @@
 [workspace]
-members = ["cached"]
+resolver = "2"
+members = ["cached", "cached-server", "cached-client"]

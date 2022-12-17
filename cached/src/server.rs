@@ -1,7 +1,6 @@
 use crate::primitives::Status;
 use crate::request::Request;
 use crate::response::{Response, ResponseBody, ResponseBodyGet};
-use std::future::Future;
 use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{broadcast, mpsc, Semaphore};
@@ -14,9 +13,8 @@ use crate::{error, Error};
 use tracing::{debug, error, info, instrument};
 
 #[derive(Debug)]
-pub struct Server {
+pub struct ServerInner {
     listener: TcpListener,
-    port: u16,
     db: Db,
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
@@ -24,86 +22,104 @@ pub struct Server {
     connection_limit: Arc<Semaphore>,
 }
 
-#[derive(Debug)]
-pub struct ServerBuilder<A>
-where
-    A: ToSocketAddrs,
-{
-    socket_address: A,
+#[derive(Debug, Default)]
+pub struct Server {
+    builder: ServerBuilder,
+    listener: Option<TcpListener>,
+    port: Option<u16>,
+}
+
+#[derive(Debug, Default)]
+pub struct ServerBuilder {
     max_connections: Option<usize>,
 }
 
-impl<A: ToSocketAddrs> ServerBuilder<A> {
-    pub fn new(addr: A) -> Self {
+impl ServerBuilder {
+    pub fn new() -> Self {
         Self {
-            socket_address: addr,
             max_connections: None,
         }
     }
+}
 
-    /// Controls the maximum number of connections the server have open at any one point.
-    pub fn max_connections(mut self, max_connections: usize) -> Self {
-        self.max_connections = Some(max_connections);
-        self
+impl Server {
+    pub fn new() -> Self {
+        Self {
+            builder: ServerBuilder::new(),
+            listener: None,
+            port: None,
+        }
     }
 
-    pub async fn try_build(self) -> error::Result<Server> {
-        let listener = TcpListener::bind(self.socket_address)
+    /// Binds to the address.
+    pub async fn bind<A: ToSocketAddrs>(mut self, addr: A) -> error::Result<Self> {
+        let listener = TcpListener::bind(addr)
             .await
             .map_err(|_| Error::Connection(ConnectionError::Bind))?;
         let port = listener
             .local_addr()
             .map_err(|_| Error::Connection(ConnectionError::LocalAddr))?
             .port();
+        self.listener = Some(listener);
+        self.port = Some(port);
+        Ok(self)
+    }
+
+    /// Controls the maximum number of connections the server have open at any one point.
+    pub fn max_connections(mut self, max_connections: usize) -> Self {
+        self.builder.max_connections = Some(max_connections);
+        self
+    }
+
+    /// Returns the port the server is running on.
+    /// This is useful for testing, when the server was bound to port 0.
+    pub fn port(&self) -> u16 {
+        self.port
+            .expect("No port available, did you bind the server?")
+    }
+
+    /// Panics if not socket address was provided (via `bind`).
+    pub async fn run(self) {
         let (notify_shutdown, _) = broadcast::channel(1);
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
-        Ok(Server {
-            listener,
-            port,
+        let mut server = ServerInner {
+            listener: self
+                .listener
+                .expect("No listener available. Did you call `bind`?"),
             db: Db::new(),
             notify_shutdown,
             shutdown_complete_tx,
             shutdown_complete_rx,
-            connection_limit: Arc::new(Semaphore::new(self.max_connections.unwrap_or(250))),
-        })
-    }
-}
+            connection_limit: Arc::new(Semaphore::new(self.builder.max_connections.unwrap_or(250))),
+        };
 
-impl Server {
-    pub fn port(&self) -> u16 {
-        self.port
-    }
-
-    pub fn builder<A: ToSocketAddrs>(addr: A) -> ServerBuilder<A> {
-        ServerBuilder::new(addr)
-    }
-
-    pub async fn run(mut self, shutdown: impl Future) {
         tokio::select! {
-            res = self.serve() => {
+            res = server.serve() => {
                 if let Err(e) = res {
                     error!("Error: {:?}", e);
                 }
             }
-            _ = shutdown => {
+            _ = tokio::signal::ctrl_c() => {
                 info!("Shutting down");
             }
         }
 
-        let Self {
+        let ServerInner {
             notify_shutdown,
             shutdown_complete_tx,
             mut shutdown_complete_rx,
             ..
-        } = self;
+        } = server;
 
         drop(notify_shutdown);
         drop(shutdown_complete_tx);
 
         let _ = shutdown_complete_rx.recv().await;
     }
+}
 
-    async fn serve(&mut self) -> crate::error::Result<()> {
+impl ServerInner {
+    async fn serve(&mut self) -> error::Result<()> {
         loop {
             self.connection_limit
                 .acquire()

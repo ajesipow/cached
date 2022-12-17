@@ -1,0 +1,15 @@
+[package]
+name = "cached-server"
+version = "0.1.0"
+authors = ["Alexander Jesipow"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cached = {path = "../cached"}
+tokio = { version = "1.17.0", features=["rt", "rt-multi-thread"] }
+clap = { version = "4.0", features=["derive"] }
+tracing = "0.1"
+tracing-chrome = "0.7.0"
+tracing-subscriber = "0.3.16"

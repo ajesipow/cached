@@ -3,15 +3,14 @@ use crate::frame::header::Header;
 use crate::frame::{Frame, RequestFrame, ResponseFrame};
 use crate::request::Request;
 use crate::response::Response;
-use bytes::{Buf, BytesMut};
+use bytes::BytesMut;
 use std::fmt::Debug;
-use std::io::Cursor;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::TcpStream;
 use tracing::instrument;
 
 #[derive(Debug)]
-pub struct Connection {
+pub(crate) struct Connection {
     stream: BufWriter<TcpStream>,
     buffer: BytesMut,
 }
@@ -65,6 +64,7 @@ impl Connection {
         self.write_frame(&frame).await
     }
 
+    #[instrument(skip(self))]
     async fn read_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
@@ -93,21 +93,12 @@ impl Connection {
         }
     }
 
+    #[instrument(skip(self))]
     fn parse_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
     {
-        let mut buf = Cursor::new(&self.buffer[..]);
-        match F::check(&mut buf) {
-            Ok(frame_length) => {
-                buf.set_position(0);
-                let frame = F::parse(&mut buf)?;
-                self.buffer.advance(frame_length);
-                Ok(Some(frame))
-            }
-            Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
-            Err(e) => Err(e),
-        }
+        parse_frame(&mut self.buffer)
     }
 
     async fn write_frame<F>(&mut self, frame: &F) -> Result<()>
@@ -122,37 +113,37 @@ impl Connection {
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         // TODO re-implement this elsewhere, the order etc is very specific to frame and should live there probably
         self.stream
-            .write_u8(frame.get_header().get_op_code() as u8)
+            .write_u8(frame.header().get_op_code() as u8)
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u8(frame.get_header().get_status_or_padding())
+            .write_u8(frame.header().get_status_or_padding())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u8(frame.get_header().get_key_length())
+            .write_u8(frame.header().get_key_length())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
             .write_u128(
                 frame
-                    .get_header()
+                    .header()
                     .get_ttl_since_unix_epoch_in_millis()
                     .into_inner(),
             )
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         self.stream
-            .write_u32(frame.get_header().get_total_frame_length())
+            .write_u32(frame.header().get_total_frame_length())
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
-        if let Some(key) = frame.get_key() {
+        if let Some(key) = frame.key() {
             self.stream
                 .write_all(key.as_bytes())
                 .await
                 .map_err(|_| Error::Connection(ConnectionError::Write))?;
         }
-        if let Some(value) = frame.get_value() {
+        if let Some(value) = frame.value() {
             self.stream
                 .write_all(value.as_bytes())
                 .await
@@ -163,5 +154,59 @@ impl Connection {
             .await
             .map_err(|_| Error::Connection(ConnectionError::Write))?;
         Ok(())
+    }
+}
+
+#[instrument(skip(buffer))]
+fn parse_frame<F>(buffer: &mut BytesMut) -> Result<Option<F>>
+where
+    F: Frame,
+    F: Debug,
+{
+    let buf = &buffer[..];
+    match F::check(buf) {
+        Ok(_) => {
+            let frame = F::parse(buffer)?;
+            Ok(Some(frame))
+        }
+        Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::frame::header::RequestHeader;
+    use crate::primitives::OpCode;
+    use bytes::BufMut;
+
+    #[global_allocator]
+    static ALLOC: dhat::Alloc = dhat::Alloc;
+
+    #[test]
+    #[ignore]
+    fn test_parsing_request_frame_works() {
+        let _profiler = dhat::Profiler::builder().testing().build();
+        let data = "\u{1}\0\u{3}\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\u{1e}ABC1234";
+        let mut bytes = BytesMut::with_capacity(30);
+        bytes.put_slice(data.as_bytes());
+        // Get the baseline for setup
+        let stats = dhat::HeapStats::get();
+        dhat::assert_eq!(stats.total_blocks, 1);
+        dhat::assert_eq!(stats.total_bytes, 30);
+
+        // The actual data we're interested in (subtract the baseline)
+        let parsed_frame = parse_frame(&mut bytes);
+        let stats = dhat::HeapStats::get();
+        dhat::assert_eq!(stats.total_blocks, 4);
+        dhat::assert_eq!(stats.total_bytes, 77);
+
+        let expected_frame = RequestFrame {
+            header: RequestHeader::parse(OpCode::Set, Some("ABC"), Some("1234"), None).unwrap(),
+            key: Some("ABC".to_string()),
+            value: Some("1234".to_string()),
+        };
+        assert_eq!(parsed_frame.unwrap(), Some(expected_frame));
     }
 }
