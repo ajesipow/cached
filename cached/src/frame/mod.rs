@@ -1,5 +1,6 @@
 use bytes::{Buf, Bytes, BytesMut};
 use std::fmt::Debug;
+#[cfg(feature = "tracing")]
 use tracing::instrument;
 
 use crate::error::{Error, FrameError, Result};
@@ -18,7 +19,7 @@ pub(crate) trait Frame {
         self.header().get_total_frame_length()
     }
 
-    #[instrument(skip(src))]
+    #[cfg_attr(feature = "tracing", instrument(skip(src)))]
     fn check(src: &[u8]) -> Result<usize> {
         if src.len() < HEADER_SIZE_BYTES as usize {
             return Err(Error::Frame(FrameError::Incomplete));
@@ -30,7 +31,7 @@ pub(crate) trait Frame {
         Ok(total_frame_length)
     }
 
-    #[instrument(skip(src))]
+    #[cfg_attr(feature = "tracing", instrument(skip(src)))]
     fn parse(src: &mut BytesMut) -> Result<Self>
     where
         Self: Sized,
@@ -105,7 +106,7 @@ impl Frame for RequestFrame {
     }
 }
 
-#[instrument(skip(src))]
+#[cfg_attr(feature = "tracing", instrument(skip(src)))]
 fn get_string(src: &mut BytesMut, len: u32) -> Result<String> {
     if src.remaining() < len as usize {
         return Err(Error::Frame(FrameError::Incomplete));

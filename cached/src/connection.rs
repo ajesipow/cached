@@ -7,6 +7,7 @@ use bytes::BytesMut;
 use std::fmt::Debug;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::TcpStream;
+#[cfg(feature = "tracing")]
 use tracing::instrument;
 
 #[derive(Debug)]
@@ -23,7 +24,7 @@ impl Connection {
         }
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn send_request(&mut self, request: Request) -> Result<Response> {
         self.write_request(request).await?;
         match self.read_response().await? {
@@ -34,7 +35,7 @@ impl Connection {
         }
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn read_request(&mut self) -> Result<Option<Request>> {
         let frame = self.read_frame::<RequestFrame>().await;
         match frame {
@@ -43,7 +44,7 @@ impl Connection {
         }
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn read_response(&mut self) -> Result<Option<Response>> {
         let frame = self.read_frame::<ResponseFrame>().await;
         match frame {
@@ -52,19 +53,19 @@ impl Connection {
         }
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn write_request(&mut self, request: Request) -> Result<()> {
         let frame = RequestFrame::try_from(request)?;
         self.write_frame(&frame).await
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn write_response(&mut self, response: Response) -> Result<()> {
         let frame = ResponseFrame::try_from(response)?;
         self.write_frame(&frame).await
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     async fn read_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
@@ -93,7 +94,7 @@ impl Connection {
         }
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     fn parse_frame<F>(&mut self) -> Result<Option<F>>
     where
         F: Frame + Debug,
@@ -157,7 +158,7 @@ impl Connection {
     }
 }
 
-#[instrument(skip(buffer))]
+#[cfg_attr(feature = "tracing", instrument(skip(buffer)))]
 fn parse_frame<F>(buffer: &mut BytesMut) -> Result<Option<F>>
 where
     F: Frame,

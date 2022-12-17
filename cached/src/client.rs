@@ -7,6 +7,7 @@ use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::spawn;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+#[cfg(feature = "tracing")]
 use tracing::instrument;
 
 #[derive(Debug)]
@@ -59,13 +60,13 @@ impl Client {
         Self { conn: conn.get() }
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn get(&self, key: String) -> Result<Response> {
         let request = Request::Get(key);
         self.handle_request(request).await
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn set(
         &self,
         key: String,
@@ -80,19 +81,19 @@ impl Client {
         self.handle_request(request).await
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn delete(&self, key: String) -> Result<Response> {
         let request = Request::Delete(key);
         self.handle_request(request).await
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn flush(&self) -> Result<Response> {
         let request = Request::Flush;
         self.handle_request(request).await
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn send(&self, request: Request) -> Result<Response> {
         self.handle_request(request).await
     }

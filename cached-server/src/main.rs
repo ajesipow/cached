@@ -1,6 +1,8 @@
 use cached::Server;
 use clap::Parser;
+#[cfg(feature = "tracing")]
 use tracing_chrome::ChromeLayerBuilder;
+#[cfg(feature = "tracing")]
 use tracing_subscriber::prelude::*;
 
 const BANNER: &str = r#"
@@ -28,8 +30,12 @@ async fn main() {
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", BANNER);
 
-    let (chrome_layer, _guard) = ChromeLayerBuilder::new().build();
-    tracing_subscriber::registry().with(chrome_layer).init();
+    #[cfg(feature = "tracing")]
+    {
+        println!("Tracing enabled");
+        let (chrome_layer, _guard) = ChromeLayerBuilder::new().build();
+        tracing_subscriber::registry().with(chrome_layer).init();
+    }
 
     let host = cli.host;
     let addr = format!("{}:{}", host, cli.port);
