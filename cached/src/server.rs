@@ -7,6 +7,7 @@ use tokio::sync::{broadcast, mpsc, Semaphore};
 
 use crate::connection::Connection;
 use crate::db::{Database, Db};
+use crate::domain::Value;
 use crate::error::ConnectionError;
 use crate::shutdown::Shutdown;
 use crate::{error, Error};
@@ -161,6 +162,7 @@ impl Handler {
     async fn run(&mut self) {
         while !self.shutdown.is_shutdown() {
             let request = tokio::select! {
+                // TODO is unwrap OK here?
                 res = self.conn.read_request() => res.unwrap(),
                 _ = self.shutdown.recv() => {
                     #[cfg(feature = "tracing")]
@@ -181,14 +183,24 @@ impl Handler {
     async fn handle_request(&self, req: Request) -> Response {
         match req {
             Request::Get(key) => match self.db.get(&key).await {
-                Some(val) => Response::new(
-                    Status::Ok,
-                    ResponseBody::Get(Some(ResponseBodyGet {
-                        key,
-                        value: val.value.to_string(),
-                        ttl_since_unix_epoch_in_millis: val.ttl_since_unix_epoch_in_millis,
-                    })),
-                ),
+                Some(val) => {
+                    match Value::parse(val.value.to_string()) {
+                        Ok(value) => Response::new(
+                            Status::Ok,
+                            ResponseBody::Get(Some(ResponseBodyGet {
+                                key,
+                                value,
+                                ttl_since_unix_epoch_in_millis: val.ttl_since_unix_epoch_in_millis,
+                            })),
+                        ),
+                        Err(_) => Response::new(
+                            Status::InternalError,
+                            // TODO pass error as value
+                            ResponseBody::Get(None),
+                        ),
+                    }
+                }
+                // TODO pass error as value too
                 None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
             },
             Request::Set {
@@ -200,7 +212,11 @@ impl Handler {
                     Response::new(Status::KeyExists, ResponseBody::Set)
                 } else {
                     self.db
-                        .insert(key, value, ttl_since_unix_epoch_in_millis)
+                        .insert(
+                            key.into_inner(),
+                            value.into_inner(),
+                            ttl_since_unix_epoch_in_millis,
+                        )
                         .await;
                     Response::new(Status::Ok, ResponseBody::Set)
                 }

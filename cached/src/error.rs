@@ -14,6 +14,7 @@ pub enum Parse {
     KeyMissing,
     ValueMissing,
     KeyAndValueMissing,
+    String,
     UnexpectedKey,
     UnexpectedValue,
 }

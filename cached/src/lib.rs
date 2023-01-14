@@ -12,6 +12,7 @@ mod db;
 mod domain;
 mod error;
 mod frame;
+mod parsing;
 mod primitives;
 mod request;
 mod response;
@@ -20,6 +21,8 @@ mod shutdown;
 
 pub use client::Client;
 pub use client::ClientConnection;
+pub use domain::Key;
+pub use domain::Value;
 pub use error::Error;
 pub use primitives::Status;
 pub use request::Request;
