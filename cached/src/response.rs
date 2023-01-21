@@ -1,27 +1,27 @@
 use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
 use crate::error::{Error, Parse, Result};
 use crate::frame::ResponseFrame;
-use crate::primitives::{OpCode, Status};
+use crate::primitives::{OpCode, StatusCode};
 use std::fmt;
 use std::fmt::Formatter;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Response {
-    pub status: Status,
+    pub status: StatusCode,
     pub body: ResponseBody,
 }
 
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self.status {
-            Status::Ok => write!(f, "{}", self.body),
+            StatusCode::Ok => write!(f, "{}", self.body),
             _ => write!(f, "{}", self.status),
         }
     }
 }
 
 impl Response {
-    pub fn new(status: Status, body: ResponseBody) -> Self {
+    pub fn new(status: StatusCode, body: ResponseBody) -> Self {
         Self { status, body }
     }
 }
@@ -109,7 +109,7 @@ impl TryFrom<ResponseFrame> for Response {
                     Ok(Some(response_body)) => Some(response_body),
                     Ok(None) => None,
                     Err(e) => {
-                        if frame.header.status == Status::Ok {
+                        if frame.header.status == StatusCode::Ok {
                             return Err(e);
                         }
                         None
@@ -156,7 +156,7 @@ mod test {
     #[rstest]
     #[case(
         OpCode::Get,
-        Status::Ok,
+        StatusCode::Ok,
         Some("ABC".to_string()),
         Some("Some value".to_string()),
         None,
@@ -164,18 +164,18 @@ mod test {
     )]
     #[case(
         OpCode::Get,
-        Status::Ok,
+        StatusCode::Ok,
         Some("ABC".to_string()),
         Some("Some value".to_string()),
         Some(123456678901),
         ResponseBody::Get(Some( ResponseBodyGet {key: Key::parse("ABC".to_string()).unwrap(), value: Value::parse("Some value".to_string()).unwrap(), ttl_since_unix_epoch_in_millis: Some(123456678901)}))
     )]
-    #[case(OpCode::Set, Status::Ok, None, None, None, ResponseBody::Set)]
-    #[case(OpCode::Delete, Status::Ok, None, None, None, ResponseBody::Delete)]
-    #[case(OpCode::Flush, Status::Ok, None, None, None, ResponseBody::Flush)]
+    #[case(OpCode::Set, StatusCode::Ok, None, None, None, ResponseBody::Set)]
+    #[case(OpCode::Delete, StatusCode::Ok, None, None, None, ResponseBody::Delete)]
+    #[case(OpCode::Flush, StatusCode::Ok, None, None, None, ResponseBody::Flush)]
     fn test_conversion_from_valid_response_frame_to_response_works(
         #[case] op_code: OpCode,
-        #[case] status: Status,
+        #[case] status: StatusCode,
         #[case] key: Option<String>,
         #[case] value: Option<String>,
         #[case] ttl: Option<u128>,
@@ -197,23 +197,23 @@ mod test {
     #[rstest]
     #[case(
         OpCode::Get,
-        Status::Ok,
+        StatusCode::Ok,
         Some("ABC".to_string()),
         None,
     )]
-    #[case(OpCode::Get, Status::Ok, None, None)]
-    #[case(OpCode::Set, Status::Ok, Some("ABC".to_string()), None)]
-    #[case(OpCode::Set, Status::Ok, None, Some("ABC".to_string()))]
-    #[case(OpCode::Set, Status::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
-    #[case(OpCode::Delete, Status::Ok, Some("ABC".to_string()), None)]
-    #[case(OpCode::Delete, Status::Ok, None, Some("ABC".to_string()))]
-    #[case(OpCode::Delete, Status::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
-    #[case(OpCode::Flush, Status::Ok, Some("ABC".to_string()), None)]
-    #[case(OpCode::Flush, Status::Ok, None, Some("ABC".to_string()))]
-    #[case(OpCode::Flush, Status::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
+    #[case(OpCode::Get, StatusCode::Ok, None, None)]
+    #[case(OpCode::Set, StatusCode::Ok, Some("ABC".to_string()), None)]
+    #[case(OpCode::Set, StatusCode::Ok, None, Some("ABC".to_string()))]
+    #[case(OpCode::Set, StatusCode::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
+    #[case(OpCode::Delete, StatusCode::Ok, Some("ABC".to_string()), None)]
+    #[case(OpCode::Delete, StatusCode::Ok, None, Some("ABC".to_string()))]
+    #[case(OpCode::Delete, StatusCode::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
+    #[case(OpCode::Flush, StatusCode::Ok, Some("ABC".to_string()), None)]
+    #[case(OpCode::Flush, StatusCode::Ok, None, Some("ABC".to_string()))]
+    #[case(OpCode::Flush, StatusCode::Ok, Some("ABC".to_string()), Some("ABC".to_string()))]
     fn test_conversion_from_invalid_response_frame_to_response_fails(
         #[case] op_code: OpCode,
-        #[case] status: Status,
+        #[case] status: StatusCode,
         #[case] key: Option<String>,
         #[case] value: Option<String>,
     ) {

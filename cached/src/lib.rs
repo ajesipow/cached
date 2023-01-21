@@ -24,7 +24,7 @@ pub use client::ClientConnection;
 pub use domain::Key;
 pub use domain::Value;
 pub use error::Error;
-pub use primitives::Status;
+pub use primitives::StatusCode;
 pub use request::Request;
 pub use response::Response;
 pub use response::ResponseBody;

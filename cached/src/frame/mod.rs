@@ -5,7 +5,7 @@ use crate::error::Result;
 pub(crate) mod header;
 use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
 use crate::primitives::OpCode;
-use crate::Status;
+use crate::StatusCode;
 use header::*;
 
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub struct ResponseFrame {
 impl ResponseFrame {
     pub fn new(
         op_code: OpCode,
-        status: Status,
+        status: StatusCode,
         ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
         key: Option<Key>,
         value: Option<Value>,
