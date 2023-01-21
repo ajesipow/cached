@@ -1,10 +1,9 @@
+use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
 use crate::error::{Error, Parse, Result};
-use crate::frame::{Frame, ResponseFrame};
+use crate::frame::ResponseFrame;
 use crate::primitives::{OpCode, Status};
 use std::fmt;
 use std::fmt::Formatter;
-
-use crate::frame::header::{Header, ResponseHeader};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Response {
@@ -27,6 +26,7 @@ impl Response {
     }
 }
 
+// TODO revamp this - should also handle error states with a value
 #[derive(Debug, Eq, PartialEq)]
 pub enum ResponseBody {
     Get(Option<ResponseBodyGet>),
@@ -51,8 +51,8 @@ impl fmt::Display for ResponseBody {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ResponseBodyGet {
-    pub key: String,
-    pub value: String,
+    pub key: Key,
+    pub value: Value,
     pub ttl_since_unix_epoch_in_millis: Option<u128>,
 }
 
@@ -79,9 +79,8 @@ impl TryFrom<Response> for ResponseFrame {
             ResponseBody::Delete => (OpCode::Delete, None, None, None),
             ResponseBody::Flush => (OpCode::Flush, None, None, None),
         };
-        let header =
-            ResponseHeader::parse(op_code, resp.status, key.as_deref(), value.as_deref(), ttl)?;
-        Ok(ResponseFrame::new(header, key, value))
+        let ttl = TTLSinceUnixEpochInMillis::parse(ttl);
+        ResponseFrame::new(op_code, resp.status, ttl, key, value)
     }
 }
 
@@ -89,13 +88,13 @@ impl TryFrom<ResponseFrame> for Response {
     type Error = Error;
 
     fn try_from(frame: ResponseFrame) -> Result<Response> {
-        let body = match frame.header.get_opcode() {
+        let body = match frame.header.op_code {
             OpCode::Get => {
                 // TODO beautify
                 let body_result = match (frame.key, frame.value) {
                     (Some(key), Some(value)) => {
                         let ttl_since_unix_epoch_in_millis =
-                            frame.header.get_ttl_since_unix_epoch_in_millis().into_ttl();
+                            frame.header.ttl_since_unix_epoch_in_millis.into_ttl();
                         Ok(Some(ResponseBodyGet {
                             key,
                             value,
@@ -110,7 +109,7 @@ impl TryFrom<ResponseFrame> for Response {
                     Ok(Some(response_body)) => Some(response_body),
                     Ok(None) => None,
                     Err(e) => {
-                        if frame.header.get_status() == &Status::Ok {
+                        if frame.header.status == Status::Ok {
                             return Err(e);
                         }
                         None
@@ -132,13 +131,13 @@ impl TryFrom<ResponseFrame> for Response {
             }
         };
         Ok(Self {
-            status: *frame.header.get_status(),
+            status: frame.header.status,
             body,
         })
     }
 }
 
-fn ensure_key_and_value_are_none(key: Option<String>, value: Option<String>) -> Result<()> {
+fn ensure_key_and_value_are_none(key: Option<Key>, value: Option<Value>) -> Result<()> {
     if key.is_some() {
         Err(Error::Parse(Parse::UnexpectedKey))
     } else if value.is_some() {
@@ -161,7 +160,7 @@ mod test {
         Some("ABC".to_string()),
         Some("Some value".to_string()),
         None,
-        ResponseBody::Get(Some( ResponseBodyGet {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: None}))
+        ResponseBody::Get(Some( ResponseBodyGet {key: Key::parse("ABC".to_string()).unwrap(), value: Value::parse("Some value".to_string()).unwrap(), ttl_since_unix_epoch_in_millis: None}))
     )]
     #[case(
         OpCode::Get,
@@ -169,7 +168,7 @@ mod test {
         Some("ABC".to_string()),
         Some("Some value".to_string()),
         Some(123456678901),
-        ResponseBody::Get(Some( ResponseBodyGet {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: Some(123456678901)}))
+        ResponseBody::Get(Some( ResponseBodyGet {key: Key::parse("ABC".to_string()).unwrap(), value: Value::parse("Some value".to_string()).unwrap(), ttl_since_unix_epoch_in_millis: Some(123456678901)}))
     )]
     #[case(OpCode::Set, Status::Ok, None, None, None, ResponseBody::Set)]
     #[case(OpCode::Delete, Status::Ok, None, None, None, ResponseBody::Delete)]
@@ -182,12 +181,10 @@ mod test {
         #[case] ttl: Option<u128>,
         #[case] expected_response_body: ResponseBody,
     ) {
-        let resp_frame = ResponseFrame {
-            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref(), ttl)
-                .unwrap(),
-            key,
-            value,
-        };
+        let key = key.map(Key::parse).transpose().unwrap();
+        let value = value.map(Value::parse).transpose().unwrap();
+        let ttl = TTLSinceUnixEpochInMillis::parse(ttl);
+        let resp_frame = ResponseFrame::new(op_code, status, ttl, key, value).unwrap();
         assert_eq!(
             Response::try_from(resp_frame),
             Ok(Response {
@@ -220,12 +217,10 @@ mod test {
         #[case] key: Option<String>,
         #[case] value: Option<String>,
     ) {
-        let resp_frame = ResponseFrame {
-            header: ResponseHeader::parse(op_code, status, key.as_deref(), value.as_deref(), None)
-                .unwrap(),
-            key,
-            value,
-        };
+        let key = key.map(Key::parse).transpose().unwrap();
+        let value = value.map(Value::parse).transpose().unwrap();
+        let ttl = TTLSinceUnixEpochInMillis::parse(None);
+        let resp_frame = ResponseFrame::new(op_code, status, ttl, key, value).unwrap();
         assert!(Response::try_from(resp_frame).is_err())
     }
 }

@@ -1,4 +1,4 @@
-use cached::{Client, Response, ResponseBody, ResponseBodyGet, Server, Status};
+use cached::{Client, Key, Response, ResponseBody, ResponseBodyGet, Server, Status, Value};
 use std::net::SocketAddr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
@@ -46,8 +46,8 @@ async fn test_setting_a_key_works() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key,
-                value,
+                key: Key::parse(key).unwrap(),
+                value: Value::parse(value).unwrap(),
                 ttl_since_unix_epoch_in_millis: None
             }))
         )
@@ -81,8 +81,8 @@ async fn test_setting_a_key_with_ttl_in_the_future_works() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key,
-                value,
+                key: Key::parse(key).unwrap(),
+                value: Value::parse(value).unwrap(),
                 ttl_since_unix_epoch_in_millis: Some(ttl)
             }))
         )
@@ -141,8 +141,8 @@ async fn test_setting_a_key_with_ttl_in_the_future_works_and_then_expires() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key: key.clone(),
-                value: value.clone(),
+                key: Key::parse(key.clone()).unwrap(),
+                value: Value::parse(value).unwrap(),
                 ttl_since_unix_epoch_in_millis: Some(ttl)
             }))
         )
@@ -173,8 +173,8 @@ async fn test_setting_the_same_key_twice_fails() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key: key.clone(),
-                value: value.clone(),
+                key: Key::parse(key.clone()).unwrap(),
+                value: Value::parse(value.clone()).unwrap(),
                 ttl_since_unix_epoch_in_millis: None
             }))
         )
@@ -203,8 +203,8 @@ async fn test_deleting_a_key_works() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key: key.clone(),
-                value,
+                key: Key::parse(key.clone()).unwrap(),
+                value: Value::parse(value).unwrap(),
                 ttl_since_unix_epoch_in_millis: None
             }))
         )
@@ -247,8 +247,8 @@ async fn test_flushing_works() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key: key.clone(),
-                value,
+                key: Key::parse(key.clone()).unwrap(),
+                value: Value::parse(value).unwrap(),
                 ttl_since_unix_epoch_in_millis: None
             }))
         )
@@ -283,8 +283,8 @@ async fn test_setting_and_getting_keys_concurrently_works() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key: key_1,
-                value: value_1,
+                key: Key::parse(key_1).unwrap(),
+                value: Value::parse(value_1).unwrap(),
                 ttl_since_unix_epoch_in_millis: None
             }))
         )
@@ -295,8 +295,8 @@ async fn test_setting_and_getting_keys_concurrently_works() {
         Response::new(
             Status::Ok,
             ResponseBody::Get(Some(ResponseBodyGet {
-                key: key_2,
-                value: value_2,
+                key: Key::parse(key_2).unwrap(),
+                value: Value::parse(value_2).unwrap(),
                 ttl_since_unix_epoch_in_millis: None
             }))
         )

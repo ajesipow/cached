@@ -1,8 +1,8 @@
-use cached::Request;
+use cached::{Key, Request, Value};
 use nom::branch::alt;
 use nom::bytes::complete::{tag_no_case, take_until1};
 use nom::character::complete::space1;
-use nom::combinator::{cut, map, verify};
+use nom::combinator::{cut, map, map_res, verify};
 use nom::error::{context, VerboseError, VerboseErrorKind};
 use nom::sequence::{separated_pair, tuple};
 use nom::IResult;
@@ -20,7 +20,7 @@ fn parse_exit(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>>
 }
 
 fn parse_get(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> {
-    map(
+    map_res(
         separated_pair(
             tag_no_case("get"),
             context("Expected key", cut(space1)),
@@ -29,23 +29,29 @@ fn parse_get(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> 
                 cut(parse_str_until_newline_without_whitespaces),
             ),
         ),
-        |(_, key): (&str, &str)| Some(Request::Get(key.to_string())),
+        |(_, key): (&str, &str)| {
+            let key = Key::parse(key.to_string())?;
+            Ok::<_, cached::Error>(Some(Request::Get(key)))
+        },
     )(input)
 }
 
 fn parse_delete(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> {
-    map(
+    map_res(
         separated_pair(
             tag_no_case("delete"),
             context("Expected key", cut(space1)),
             parse_str_until_newline_without_whitespaces,
         ),
-        |(_, key): (&str, &str)| Some(Request::Delete(key.to_string())),
+        |(_, key): (&str, &str)| {
+            let key = Key::parse(key.to_string())?;
+            Ok::<_, cached::Error>(Some(Request::Delete(key)))
+        },
     )(input)
 }
 
 fn parse_set(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> {
-    map(
+    map_res(
         tuple((
             tag_no_case("set"),
             context("Expected key", cut(space1)),
@@ -57,11 +63,13 @@ fn parse_set(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> 
             ),
         )),
         |(_, _, key, _, value): (&str, &str, &str, &str, &str)| {
-            Some(Request::Set {
-                key: key.to_string(),
-                value: value.to_string(),
+            let key = Key::parse(key.to_string())?;
+            let value = Value::parse(value.to_string())?;
+            Ok::<_, cached::Error>(Some(Request::Set {
+                key,
+                value,
                 ttl_since_unix_epoch_in_millis: None,
-            })
+            }))
         },
     )(input)
 }

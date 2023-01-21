@@ -1,4 +1,5 @@
 use crate::connection::Connection;
+use crate::domain::{Key, Value};
 use crate::error::ConnectionError;
 use crate::error::{Error, Result};
 use crate::request::Request;
@@ -62,6 +63,7 @@ impl Client {
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn get(&self, key: String) -> Result<Response> {
+        let key = Key::parse(key)?;
         let request = Request::Get(key);
         self.handle_request(request).await
     }
@@ -73,6 +75,8 @@ impl Client {
         value: String,
         ttl_since_unix_epoch_in_millis: Option<u128>,
     ) -> Result<Response> {
+        let key = Key::parse(key)?;
+        let value = Value::parse(value)?;
         let request = Request::Set {
             key,
             value,
@@ -83,6 +87,7 @@ impl Client {
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn delete(&self, key: String) -> Result<Response> {
+        let key = Key::parse(key)?;
         let request = Request::Delete(key);
         self.handle_request(request).await
     }

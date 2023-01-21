@@ -93,6 +93,7 @@ dependencies = [
  "criterion",
  "dhat",
  "futures",
+ "nom",
  "rstest",
  "tokio",
  "tracing",

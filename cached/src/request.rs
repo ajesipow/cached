@@ -1,20 +1,18 @@
+use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
 use crate::error::{Error, Parse};
-use crate::frame::{Frame, RequestFrame};
+use crate::frame::RequestFrame;
 use crate::primitives::OpCode;
-
-use crate::frame::header::Header;
-use crate::frame::header::RequestHeader;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Request {
-    Get(String),
+    Get(Key),
     Set {
-        key: String,
-        value: String,
+        key: Key,
+        value: Value,
         ttl_since_unix_epoch_in_millis: Option<u128>,
     },
-    Delete(String),
+    Delete(Key),
     Flush,
 }
 
@@ -22,34 +20,24 @@ impl TryFrom<Request> for RequestFrame {
     type Error = Error;
 
     fn try_from(req: Request) -> Result<Self, Self::Error> {
-        let (header, key, value) = match req {
-            Request::Get(key) => {
-                let header = RequestHeader::parse(OpCode::Get, Some(&key), None, None)?;
-                (header, Some(key), None)
-            }
+        let (op_code, ttl, key, value) = match req {
+            Request::Get(key) => (OpCode::Get, None, Some(key), None),
             Request::Set {
                 key,
                 value,
                 ttl_since_unix_epoch_in_millis,
-            } => {
-                let header = RequestHeader::parse(
-                    OpCode::Set,
-                    Some(&key),
-                    Some(&value),
-                    ttl_since_unix_epoch_in_millis,
-                )?;
-                (header, Some(key), Some(value))
-            }
-            Request::Delete(key) => {
-                let header = RequestHeader::parse(OpCode::Delete, Some(&key), None, None)?;
-                (header, Some(key), None)
-            }
-            Request::Flush => {
-                let header = RequestHeader::parse(OpCode::Flush, None, None, None)?;
-                (header, None, None)
-            }
+            } => (
+                OpCode::Set,
+                ttl_since_unix_epoch_in_millis,
+                Some(key),
+                Some(value),
+            ),
+            Request::Delete(key) => (OpCode::Delete, None, Some(key), None),
+            Request::Flush => (OpCode::Flush, None, None, None),
         };
-        Ok(RequestFrame::new(header, key, value))
+
+        let ttl = TTLSinceUnixEpochInMillis::parse(ttl);
+        RequestFrame::new(op_code, ttl, key, value)
     }
 }
 
@@ -57,13 +45,13 @@ impl TryFrom<RequestFrame> for Request {
     type Error = Error;
 
     fn try_from(frame: RequestFrame) -> Result<Self, Self::Error> {
-        match frame.header.get_opcode() {
+        match frame.header.op_code {
             OpCode::Set => Ok(Request::Set {
                 key: frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
                 value: frame.value.ok_or(Error::Parse(Parse::ValueMissing))?,
                 ttl_since_unix_epoch_in_millis: frame
                     .header
-                    .get_ttl_since_unix_epoch_in_millis()
+                    .ttl_since_unix_epoch_in_millis
                     .into_ttl(),
             }),
             OpCode::Get => {
@@ -98,6 +86,7 @@ impl TryFrom<RequestFrame> for Request {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::domain::TTLSinceUnixEpochInMillis;
     use crate::Request;
     use rstest::rstest;
 
@@ -106,19 +95,19 @@ mod test {
         OpCode::Get,
         Some("ABC".to_string()),
         None,
-        Request::Get("ABC".to_string())
+        Request::Get(Key::parse("ABC".to_string()).unwrap())
     )]
     #[case(
         OpCode::Set,
         Some("ABC".to_string()),
         Some("Some value".to_string()),
-        Request::Set {key: "ABC".to_string(), value: "Some value".to_string(), ttl_since_unix_epoch_in_millis: None }
+        Request::Set {key: Key::parse("ABC".to_string()).unwrap(), value: Value::parse("Some value".to_string()).unwrap(), ttl_since_unix_epoch_in_millis: None }
     )]
     #[case(
         OpCode::Delete,
         Some("ABC".to_string()),
         None,
-        Request::Delete("ABC".to_string())
+        Request::Delete(Key::parse("ABC".to_string()).unwrap())
     )]
     #[case(OpCode::Flush, None, None, Request::Flush)]
     fn test_conversion_from_valid_request_frame_to_request_works(
@@ -127,11 +116,10 @@ mod test {
         #[case] value: Option<String>,
         #[case] expected_request: Request,
     ) {
-        let req_frame = RequestFrame {
-            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref(), None).unwrap(),
-            key,
-            value,
-        };
+        let key = key.map(Key::parse).transpose().unwrap();
+        let value = value.map(Value::parse).transpose().unwrap();
+        let ttl = TTLSinceUnixEpochInMillis::parse(None);
+        let req_frame = RequestFrame::new(op_code, ttl, key, value).unwrap();
         assert_eq!(Request::try_from(req_frame), Ok(expected_request))
     }
 
@@ -172,11 +160,10 @@ mod test {
         #[case] key: Option<String>,
         #[case] value: Option<String>,
     ) {
-        let req_frame = RequestFrame {
-            header: RequestHeader::parse(op_code, key.as_deref(), value.as_deref(), None).unwrap(),
-            key,
-            value,
-        };
+        let key = key.map(Key::parse).transpose().unwrap();
+        let value = value.map(Value::parse).transpose().unwrap();
+        let ttl = TTLSinceUnixEpochInMillis::parse(None);
+        let req_frame = RequestFrame::new(op_code, ttl, key, value).unwrap();
         assert!(Request::try_from(req_frame).is_err())
     }
 }
