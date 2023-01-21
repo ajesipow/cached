@@ -7,7 +7,7 @@ static HEADER_SIZE_BYTES: u8 = 23;
 
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct RequestHeader {
+pub(crate) struct RequestHeader {
     pub op_code: OpCode,
     pub key_length: u8,
     pub ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
@@ -36,7 +36,7 @@ impl RequestHeader {
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct ResponseHeader {
+pub(crate) struct ResponseHeader {
     pub op_code: OpCode,
     pub status: StatusCode,
     pub key_length: u8,

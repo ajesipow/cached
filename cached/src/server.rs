@@ -15,7 +15,7 @@ use crate::{error, Error};
 use tracing::{debug, error, info, instrument};
 
 #[derive(Debug)]
-pub struct ServerInner {
+struct ServerInner {
     listener: TcpListener,
     db: Db,
     notify_shutdown: broadcast::Sender<()>,

@@ -5,7 +5,7 @@ use crate::primitives::OpCode;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub enum Request {
+pub(crate) enum Request {
     Get(Key),
     Set {
         key: Key,
@@ -87,7 +87,7 @@ impl TryFrom<RequestFrame> for Request {
 mod test {
     use super::*;
     use crate::domain::TTLSinceUnixEpochInMillis;
-    use crate::Request;
+    use crate::request::Request;
     use rstest::rstest;
 
     #[rstest]

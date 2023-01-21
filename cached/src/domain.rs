@@ -11,13 +11,13 @@ static MAX_VALUE_LENGTH: u32 = 1024 * 1024;
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 // A value of 0 means no TTL
-pub struct TTLSinceUnixEpochInMillis(u128);
+pub(crate) struct TTLSinceUnixEpochInMillis(u128);
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Value(String);
+pub(crate) struct Value(String);
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Key(String);
+pub(crate) struct Key(String);
 
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -48,10 +48,6 @@ impl Value {
         self.0.len() as u32
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
@@ -73,10 +69,6 @@ impl Key {
     pub fn len(&self) -> u8 {
         // Guaranteed to not overflow because of u8::MAX used in `Self::parse`
         self.0.len() as u8
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
     }
 
     pub fn as_bytes(&self) -> &[u8] {

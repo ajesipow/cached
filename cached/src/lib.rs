@@ -21,12 +21,6 @@ mod shutdown;
 
 pub use client::Client;
 pub use client::ClientConnection;
-pub use domain::Key;
-pub use domain::Value;
 pub use error::Error;
 pub use primitives::StatusCode;
-pub use request::Request;
-pub use response::Response;
-pub use response::ResponseBody;
-pub use response::ResponseBodyGet;
 pub use server::Server;

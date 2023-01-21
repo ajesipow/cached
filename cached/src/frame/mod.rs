@@ -9,7 +9,7 @@ use crate::StatusCode;
 use header::*;
 
 #[derive(Debug)]
-pub struct ResponseFrame {
+pub(crate) struct ResponseFrame {
     pub header: ResponseHeader,
     pub key: Option<Key>,
     pub value: Option<Value>,
@@ -41,7 +41,7 @@ impl ResponseFrame {
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct RequestFrame {
+pub(crate) struct RequestFrame {
     pub header: RequestHeader,
     pub key: Option<Key>,
     pub value: Option<Value>,

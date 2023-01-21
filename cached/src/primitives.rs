@@ -41,7 +41,7 @@ impl TryFrom<u8> for StatusCode {
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[repr(u8)]
-pub enum OpCode {
+pub(crate) enum OpCode {
     Set = 1,
     Get = 2,
     Delete = 3,

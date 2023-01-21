@@ -6,7 +6,7 @@ use std::fmt;
 use std::fmt::Formatter;
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Response {
+pub(crate) struct Response {
     pub status: StatusCode,
     pub body: ResponseBody,
 }
@@ -65,7 +65,7 @@ impl Response {
 
 // TODO revamp this - should also handle error states with a value
 #[derive(Debug, Eq, PartialEq)]
-pub enum ResponseBody {
+pub(crate) enum ResponseBody {
     Get(Option<ResponseBodyGet>),
     Set,
     Delete,
@@ -87,7 +87,7 @@ impl fmt::Display for ResponseBody {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct ResponseBodyGet {
+pub(crate) struct ResponseBodyGet {
     pub key: Key,
     pub value: Value,
     pub ttl_since_unix_epoch_in_millis: Option<u128>,
@@ -187,7 +187,7 @@ fn ensure_key_and_value_are_none(key: Option<Key>, value: Option<Value>) -> Resu
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Response, ResponseBody, ResponseBodyGet};
+    use crate::response::{Response, ResponseBody, ResponseBodyGet};
     use rstest::rstest;
 
     #[rstest]
