@@ -53,7 +53,7 @@ pub struct Client {
 }
 
 impl Client {
-    /// Panics if cannot connect to addr.
+    /// Panics if it cannot connect to addr.
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let conn = ClientConnection::new(addr).await;
         Self::with_connection(&conn)

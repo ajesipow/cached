@@ -11,6 +11,9 @@ pub(crate) struct Response {
     pub body: ResponseBody,
 }
 
+/// The response struct for a GET request.
+///
+/// The `value` is `None` if the key does not exist in the cache.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ResponseGet {
     status: StatusCode,

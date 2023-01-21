@@ -80,7 +80,7 @@ impl Server {
             .expect("No port available, did you bind the server?")
     }
 
-    /// Panics if not socket address was provided (via `bind`).
+    /// Panics if no socket address was provided (via `bind`).
     pub async fn run(self) {
         let (notify_shutdown, _) = broadcast::channel(1);
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
