@@ -1,5 +1,5 @@
 use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
-use crate::error::{Error, Parse, Result};
+use crate::error::{Error, ParseError, Result};
 use crate::frame::ResponseFrame;
 use crate::primitives::{OpCode, StatusCode};
 use std::fmt;
@@ -9,6 +9,43 @@ use std::fmt::Formatter;
 pub struct Response {
     pub status: StatusCode,
     pub body: ResponseBody,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct ResponseGet {
+    status: StatusCode,
+    value: Option<String>,
+    ttl_since_unix_epoch_in_millis: Option<u128>,
+}
+
+impl ResponseGet {
+    pub(crate) fn new(
+        status: StatusCode,
+        value: Option<String>,
+        ttl_since_unix_epoch_in_millis: Option<u128>,
+    ) -> Self {
+        Self {
+            status,
+            value,
+            ttl_since_unix_epoch_in_millis,
+        }
+    }
+
+    pub fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    pub fn ttl_since_unix_epoch_in_millis(&self) -> Option<u128> {
+        self.ttl_since_unix_epoch_in_millis
+    }
+
+    pub fn value(&self) -> Option<&String> {
+        self.value.as_ref()
+    }
+
+    pub fn into_value(self) -> Option<String> {
+        self.value
+    }
 }
 
 impl fmt::Display for Response {
@@ -101,9 +138,9 @@ impl TryFrom<ResponseFrame> for Response {
                             ttl_since_unix_epoch_in_millis,
                         }))
                     }
-                    (Some(_), None) => Err(Error::Parse(Parse::ValueMissing)),
-                    (None, Some(_)) => Err(Error::Parse(Parse::KeyMissing)),
-                    (None, None) => Err(Error::Parse(Parse::KeyAndValueMissing)),
+                    (Some(_), None) => Err(Error::Parse(ParseError::ValueMissing)),
+                    (None, Some(_)) => Err(Error::Parse(ParseError::KeyMissing)),
+                    (None, None) => Err(Error::Parse(ParseError::KeyAndValueMissing)),
                 };
                 let body = match body_result {
                     Ok(Some(response_body)) => Some(response_body),
@@ -139,9 +176,9 @@ impl TryFrom<ResponseFrame> for Response {
 
 fn ensure_key_and_value_are_none(key: Option<Key>, value: Option<Value>) -> Result<()> {
     if key.is_some() {
-        Err(Error::Parse(Parse::UnexpectedKey))
+        Err(Error::Parse(ParseError::UnexpectedKey))
     } else if value.is_some() {
-        Err(Error::Parse(Parse::UnexpectedValue))
+        Err(Error::Parse(ParseError::UnexpectedValue))
     } else {
         Ok(())
     }

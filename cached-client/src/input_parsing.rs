@@ -1,11 +1,21 @@
-use cached::{Key, Request, Value};
 use nom::branch::alt;
 use nom::bytes::complete::{tag_no_case, take_until1};
 use nom::character::complete::space1;
-use nom::combinator::{cut, map, map_res, verify};
+use nom::combinator::{cut, map, verify};
 use nom::error::{context, VerboseError, VerboseErrorKind};
 use nom::sequence::{separated_pair, tuple};
 use nom::IResult;
+
+pub(crate) enum Request {
+    Get(String),
+    Set {
+        key: String,
+        value: String,
+        ttl_since_unix_epoch_in_millis: Option<u128>,
+    },
+    Delete(String),
+    Flush,
+}
 
 pub(crate) fn parse_input(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> {
     alt((parse_set, parse_flush, parse_get, parse_delete, parse_exit))(input)
@@ -20,7 +30,7 @@ fn parse_exit(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>>
 }
 
 fn parse_get(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> {
-    map_res(
+    map(
         separated_pair(
             tag_no_case("get"),
             context("Expected key", cut(space1)),
@@ -29,29 +39,23 @@ fn parse_get(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> 
                 cut(parse_str_until_newline_without_whitespaces),
             ),
         ),
-        |(_, key): (&str, &str)| {
-            let key = Key::parse(key.to_string())?;
-            Ok::<_, cached::Error>(Some(Request::Get(key)))
-        },
+        |(_, key): (&str, &str)| Some(Request::Get(key.to_string())),
     )(input)
 }
 
 fn parse_delete(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> {
-    map_res(
+    map(
         separated_pair(
             tag_no_case("delete"),
             context("Expected key", cut(space1)),
             parse_str_until_newline_without_whitespaces,
         ),
-        |(_, key): (&str, &str)| {
-            let key = Key::parse(key.to_string())?;
-            Ok::<_, cached::Error>(Some(Request::Delete(key)))
-        },
+        |(_, key): (&str, &str)| Some(Request::Delete(key.to_string())),
     )(input)
 }
 
 fn parse_set(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> {
-    map_res(
+    map(
         tuple((
             tag_no_case("set"),
             context("Expected key", cut(space1)),
@@ -63,13 +67,11 @@ fn parse_set(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> 
             ),
         )),
         |(_, _, key, _, value): (&str, &str, &str, &str, &str)| {
-            let key = Key::parse(key.to_string())?;
-            let value = Value::parse(value.to_string())?;
-            Ok::<_, cached::Error>(Some(Request::Set {
-                key,
-                value,
+            Some(Request::Set {
+                key: key.to_string(),
+                value: value.to_string(),
                 ttl_since_unix_epoch_in_millis: None,
-            }))
+            })
         },
     )(input)
 }
