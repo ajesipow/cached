@@ -53,16 +53,20 @@ pub struct Client {
 }
 
 impl Client {
+    /// Create a new client connecting to a server at `addr`.
+    ///
     /// Panics if it cannot connect to addr.
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let conn = ClientConnection::new(addr).await;
         Self::with_connection(&conn)
     }
 
+    /// Create a new client on top of an existing connection.
     pub fn with_connection(conn: &ClientConnection) -> Self {
         Self { conn: conn.get() }
     }
 
+    /// Get a value by its key from the cache.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn get(&self, key: String) -> Result<ResponseGet> {
         let key = Key::parse(key)?;
@@ -81,6 +85,8 @@ impl Client {
         }
     }
 
+    /// Set a value for the given key with a time to live.
+    /// Existing values for the key are not overwritten.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn set(
         &self,
@@ -99,6 +105,7 @@ impl Client {
         Ok(response.status)
     }
 
+    /// Delete a key with its value from the cache.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn delete(&self, key: String) -> Result<StatusCode> {
         let key = Key::parse(key)?;
@@ -107,6 +114,7 @@ impl Client {
         Ok(response.status)
     }
 
+    /// Clear the entire cache.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn flush(&self) -> Result<StatusCode> {
         let request = Request::Flush;
