@@ -1,4 +1,4 @@
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]

@@ -14,7 +14,7 @@ use tokio::sync::oneshot;
 use tracing::instrument;
 
 #[derive(Debug)]
-pub struct RequestResponder {
+struct RequestResponder {
     request: Request,
     responder: oneshot::Sender<Result<Response>>,
 }
@@ -42,7 +42,7 @@ impl ClientConnection {
         Self { sender: tx }
     }
 
-    pub fn get(&self) -> mpsc::Sender<RequestResponder> {
+    fn get(&self) -> mpsc::Sender<RequestResponder> {
         self.sender.clone()
     }
 }

@@ -26,7 +26,7 @@ impl Connection {
     }
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn send_request(&mut self, request: Request) -> Result<Response> {
+    pub(crate) async fn send_request(&mut self, request: Request) -> Result<Response> {
         self.write_request(request).await?;
         match self.read_response().await? {
             Some(response) => Ok(response),
@@ -37,7 +37,7 @@ impl Connection {
     }
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn read_request(&mut self) -> Result<Option<Request>> {
+    pub(crate) async fn read_request(&mut self) -> Result<Option<Request>> {
         loop {
             self.stream.get_ref().readable().await.map_err(|_| {
                 Error::Connection(ConnectionError::Read(
@@ -63,7 +63,7 @@ impl Connection {
     }
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn read_response(&mut self) -> Result<Option<Response>> {
+    pub(crate) async fn read_response(&mut self) -> Result<Option<Response>> {
         loop {
             self.stream.get_ref().readable().await.map_err(|_| {
                 Error::Connection(ConnectionError::Read(
@@ -89,7 +89,7 @@ impl Connection {
     }
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn write_request(&mut self, request: Request) -> Result<()> {
+    pub(crate) async fn write_request(&mut self, request: Request) -> Result<()> {
         // TODO do we even need a Frame?
         let frame = RequestFrame::try_from(request)?;
         // TODO error conversion
@@ -140,7 +140,7 @@ impl Connection {
     }
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn write_response(&mut self, response: Response) -> Result<()> {
+    pub(crate) async fn write_response(&mut self, response: Response) -> Result<()> {
         // TODO do we even need a Frame?
         let frame = ResponseFrame::try_from(response)?;
         // TODO error conversion

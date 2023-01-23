@@ -61,7 +61,7 @@ impl fmt::Display for Response {
 }
 
 impl Response {
-    pub fn new(status: StatusCode, body: ResponseBody) -> Self {
+    pub(crate) fn new(status: StatusCode, body: ResponseBody) -> Self {
         Self { status, body }
     }
 }

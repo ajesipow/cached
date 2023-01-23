@@ -16,7 +16,7 @@ pub(crate) struct ResponseFrame {
 }
 
 impl ResponseFrame {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
         status: StatusCode,
         ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
@@ -48,7 +48,7 @@ pub(crate) struct RequestFrame {
 }
 
 impl RequestFrame {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
         ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
         key: Option<Key>,

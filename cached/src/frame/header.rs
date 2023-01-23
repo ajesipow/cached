@@ -15,7 +15,7 @@ pub(crate) struct RequestHeader {
 }
 
 impl RequestHeader {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
         key_length: u8,
         total_frame_length: u32,
@@ -29,7 +29,7 @@ impl RequestHeader {
         }
     }
 
-    pub fn size() -> u8 {
+    pub(crate) fn size() -> u8 {
         HEADER_SIZE_BYTES
     }
 }
@@ -45,7 +45,7 @@ pub(crate) struct ResponseHeader {
 }
 
 impl ResponseHeader {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
         status: StatusCode,
         key_length: u8,
@@ -61,7 +61,7 @@ impl ResponseHeader {
         }
     }
 
-    pub fn size() -> u8 {
+    pub(crate) fn size() -> u8 {
         HEADER_SIZE_BYTES
     }
 }

@@ -32,29 +32,29 @@ impl Display for Key {
 }
 
 impl Value {
-    pub fn parse(v: String) -> Result<Self> {
+    pub(crate) fn parse(v: String) -> Result<Self> {
         if v.len() > MAX_VALUE_LENGTH as usize {
             return Err(Error::Frame(FrameError::ValueTooLong));
         }
         Ok(Self(v))
     }
 
-    pub fn into_inner(self) -> String {
+    pub(crate) fn into_inner(self) -> String {
         self.0
     }
 
-    pub fn len(&self) -> u32 {
+    pub(crate) fn len(&self) -> u32 {
         // Guaranteed to not overflow because of MAX_VALUE_LENGTH used in `Self::parse`
         self.0.len() as u32
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
+    pub(crate) fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
 }
 
 impl Key {
-    pub fn parse(k: String) -> Result<Self> {
+    pub(crate) fn parse(k: String) -> Result<Self> {
         // Key must not be longer than u8::MAX
         if k.len() > u8::MAX as usize {
             return Err(Error::Frame(FrameError::KeyTooLong));
@@ -62,16 +62,16 @@ impl Key {
         Ok(Self(k))
     }
 
-    pub fn into_inner(self) -> String {
+    pub(crate) fn into_inner(self) -> String {
         self.0
     }
 
-    pub fn len(&self) -> u8 {
+    pub(crate) fn len(&self) -> u8 {
         // Guaranteed to not overflow because of u8::MAX used in `Self::parse`
         self.0.len() as u8
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
+    pub(crate) fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
 }
@@ -93,7 +93,7 @@ impl Deref for Value {
 }
 
 impl TTLSinceUnixEpochInMillis {
-    pub fn parse(ttl: Option<u128>) -> Self {
+    pub(crate) fn parse(ttl: Option<u128>) -> Self {
         ttl.map_or(Self(NO_TTL_INDICATOR), |ttl_since_unix_epoch_in_millis| {
             if ttl_since_unix_epoch_in_millis == NO_TTL_INDICATOR {
                 Self(NO_TTL_INDICATOR)
@@ -103,11 +103,11 @@ impl TTLSinceUnixEpochInMillis {
         })
     }
 
-    pub fn into_inner(self) -> u128 {
+    pub(crate) fn into_inner(self) -> u128 {
         self.0
     }
 
-    pub fn into_ttl(self) -> Option<u128> {
+    pub(crate) fn into_ttl(self) -> Option<u128> {
         match self.0 {
             0 => None,
             ttl => Some(ttl),

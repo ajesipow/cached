@@ -130,7 +130,7 @@ impl MainDB {
 }
 
 impl Db {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let (tx, rx) = mpsc::channel::<DbRequestWithResponder>(32);
         let main_db = MainDB::new();
         tokio::spawn(Self::run(rx, main_db));
