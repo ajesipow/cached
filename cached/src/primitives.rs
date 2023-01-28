@@ -6,14 +6,14 @@ use std::fmt::Formatter;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
-pub enum Status {
+pub enum StatusCode {
     Ok = 0,
     KeyNotFound = 1,
     KeyExists = 2,
     InternalError = 3,
 }
 
-impl fmt::Display for Status {
+impl fmt::Display for StatusCode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Ok => write!(f, "OK"),
@@ -24,15 +24,15 @@ impl fmt::Display for Status {
     }
 }
 
-impl TryFrom<u8> for Status {
+impl TryFrom<u8> for StatusCode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self> {
         match value {
-            0 => Ok(Status::Ok),
-            1 => Ok(Status::KeyNotFound),
-            2 => Ok(Status::KeyExists),
-            3 => Ok(Status::InternalError),
+            0 => Ok(StatusCode::Ok),
+            1 => Ok(StatusCode::KeyNotFound),
+            2 => Ok(StatusCode::KeyExists),
+            3 => Ok(StatusCode::InternalError),
             _ => Err(Error::Frame(FrameError::InvalidStatusCode)),
         }
     }
@@ -41,7 +41,7 @@ impl TryFrom<u8> for Status {
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[repr(u8)]
-pub enum OpCode {
+pub(crate) enum OpCode {
     Set = 1,
     Get = 2,
     Delete = 3,
@@ -97,18 +97,18 @@ mod test {
 
     #[test]
     fn test_status_code_serialization() {
-        assert_eq!(Status::Ok as u8, 0);
-        assert_eq!(Status::KeyNotFound as u8, 1);
-        assert_eq!(Status::KeyExists as u8, 2);
-        assert_eq!(Status::InternalError as u8, 3);
+        assert_eq!(StatusCode::Ok as u8, 0);
+        assert_eq!(StatusCode::KeyNotFound as u8, 1);
+        assert_eq!(StatusCode::KeyExists as u8, 2);
+        assert_eq!(StatusCode::InternalError as u8, 3);
     }
 
     #[test]
     fn test_status_code_deserialization_works() {
-        assert_eq!(Status::try_from(0), Ok(Status::Ok));
-        assert_eq!(Status::try_from(1), Ok(Status::KeyNotFound));
-        assert_eq!(Status::try_from(2), Ok(Status::KeyExists));
-        assert_eq!(Status::try_from(3), Ok(Status::InternalError));
+        assert_eq!(StatusCode::try_from(0), Ok(StatusCode::Ok));
+        assert_eq!(StatusCode::try_from(1), Ok(StatusCode::KeyNotFound));
+        assert_eq!(StatusCode::try_from(2), Ok(StatusCode::KeyExists));
+        assert_eq!(StatusCode::try_from(3), Ok(StatusCode::InternalError));
     }
 
     #[rstest]
@@ -120,6 +120,6 @@ mod test {
     #[case(9)]
     #[case(10)]
     fn test_status_code_deserialization_fails_for_wrong_codes(#[case] input: u8) {
-        assert!(Status::try_from(input).is_err());
+        assert!(StatusCode::try_from(input).is_err());
     }
 }

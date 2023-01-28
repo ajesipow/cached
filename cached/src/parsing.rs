@@ -1,9 +1,9 @@
 use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
-use crate::error::{FrameError, Parse, Result};
+use crate::error::{FrameError, ParseError, Result};
 use crate::frame::header::{RequestHeader, ResponseHeader};
 use crate::frame::{RequestFrame, ResponseFrame};
 use crate::primitives::OpCode;
-use crate::{Error, Status};
+use crate::{Error, StatusCode};
 use nom::bytes::streaming::take;
 use nom::combinator::map_res;
 use nom::number::streaming::{be_u128, be_u32, u8};
@@ -22,15 +22,15 @@ pub(crate) fn parse_request_frame(input: &[u8]) -> Result<RequestFrame> {
         if e.is_incomplete() {
             Error::Frame(FrameError::Incomplete)
         } else {
-            Error::Parse(Parse::String)
+            Error::Parse(ParseError::String)
         }
     })?;
     let key = match key_bytes.len() {
         0 => None,
         // TODO use Cow instead?
         _ => {
-            let key =
-                String::from_utf8(key_bytes.to_vec()).map_err(|_| Error::Parse(Parse::String))?;
+            let key = String::from_utf8(key_bytes.to_vec())
+                .map_err(|_| Error::Parse(ParseError::String))?;
             let key = Key::parse(key)?;
             Some(key)
         }
@@ -39,8 +39,8 @@ pub(crate) fn parse_request_frame(input: &[u8]) -> Result<RequestFrame> {
         0 => None,
         // TODO use Cow instead?
         _ => {
-            let value =
-                String::from_utf8(value_bytes.to_vec()).map_err(|_| Error::Parse(Parse::String))?;
+            let value = String::from_utf8(value_bytes.to_vec())
+                .map_err(|_| Error::Parse(ParseError::String))?;
             let value = Value::parse(value)?;
             Some(value)
         }
@@ -92,15 +92,15 @@ pub(crate) fn parse_response_frame(input: &[u8]) -> Result<ResponseFrame> {
         if e.is_incomplete() {
             Error::Frame(FrameError::Incomplete)
         } else {
-            Error::Parse(Parse::String)
+            Error::Parse(ParseError::String)
         }
     })?;
     let key = match key_bytes.len() {
         0 => None,
         // TODO use Cow instead?
         _ => {
-            let key =
-                String::from_utf8(key_bytes.to_vec()).map_err(|_| Error::Parse(Parse::String))?;
+            let key = String::from_utf8(key_bytes.to_vec())
+                .map_err(|_| Error::Parse(ParseError::String))?;
             let key = Key::parse(key)?;
             Some(key)
         }
@@ -109,8 +109,8 @@ pub(crate) fn parse_response_frame(input: &[u8]) -> Result<ResponseFrame> {
         0 => None,
         // TODO use Cow instead?
         _ => {
-            let value =
-                String::from_utf8(value_bytes.to_vec()).map_err(|_| Error::Parse(Parse::String))?;
+            let value = String::from_utf8(value_bytes.to_vec())
+                .map_err(|_| Error::Parse(ParseError::String))?;
             let value = Value::parse(value)?;
             Some(value)
         }
@@ -122,7 +122,7 @@ pub(crate) fn parse_response_frame(input: &[u8]) -> Result<ResponseFrame> {
 
 struct ResponsePrimitive<'a> {
     op_code: OpCode,
-    status: Status,
+    status: StatusCode,
     ttl_since_unix_epoch_in_millis: u128,
     key_bytes: &'a [u8],
     value_bytes: &'a [u8],
@@ -130,7 +130,7 @@ struct ResponsePrimitive<'a> {
 
 fn parse_response_primitives(input: &[u8]) -> IResult<&[u8], ResponsePrimitive<'_>> {
     let (remainder, op_code) = map_res(u8, OpCode::try_from)(input)?;
-    let (remainder, status) = map_res(u8, Status::try_from)(remainder)?;
+    let (remainder, status) = map_res(u8, StatusCode::try_from)(remainder)?;
     let (remainder, key_length) = u8(remainder)?;
     let (remainder, ttl_since_unix_epoch_in_millis) = be_u128(remainder)?;
     let (remainder, total_frame_length) = be_u32(remainder)?;

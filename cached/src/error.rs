@@ -1,16 +1,17 @@
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Error {
-    Parse(Parse),
+    Parse(ParseError),
     Frame(FrameError),
     Connection(ConnectionError),
+    Server(ServerError),
 }
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub enum Parse {
+pub enum ParseError {
     KeyMissing,
     ValueMissing,
     KeyAndValueMissing,
@@ -42,4 +43,10 @@ pub enum ConnectionError {
     Bind,
     LocalAddr,
     NoConnection(String),
+}
+
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub enum ServerError {
+    NoValueReturned,
 }

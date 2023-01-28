@@ -1,9 +1,11 @@
 use crate::connection::Connection;
 use crate::domain::{Key, Value};
-use crate::error::ConnectionError;
+use crate::error::{ConnectionError, ServerError};
 use crate::error::{Error, Result};
 use crate::request::Request;
-use crate::response::Response;
+use crate::response::{Response, ResponseBody, ResponseGet};
+use crate::Error::Server;
+use crate::StatusCode;
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -12,7 +14,7 @@ use tokio::sync::oneshot;
 use tracing::instrument;
 
 #[derive(Debug)]
-pub struct RequestResponder {
+struct RequestResponder {
     request: Request,
     responder: oneshot::Sender<Result<Response>>,
 }
@@ -40,7 +42,7 @@ impl ClientConnection {
         Self { sender: tx }
     }
 
-    pub fn get(&self) -> mpsc::Sender<RequestResponder> {
+    fn get(&self) -> mpsc::Sender<RequestResponder> {
         self.sender.clone()
     }
 }
@@ -51,30 +53,47 @@ pub struct Client {
 }
 
 impl Client {
-    /// Panics if cannot connect to addr.
+    /// Create a new client connecting to a server at `addr`.
+    ///
+    /// Panics if it cannot connect to addr.
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let conn = ClientConnection::new(addr).await;
         Self::with_connection(&conn)
     }
 
+    /// Create a new client on top of an existing connection.
     pub fn with_connection(conn: &ClientConnection) -> Self {
         Self { conn: conn.get() }
     }
 
+    /// Get a value by its key from the cache.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn get(&self, key: String) -> Result<Response> {
+    pub async fn get(&self, key: String) -> Result<ResponseGet> {
         let key = Key::parse(key)?;
         let request = Request::Get(key);
-        self.handle_request(request).await
+        let response = self.handle_request(request).await?;
+        if let ResponseBody::Get(maybe_value) = response.body {
+            let (value, ttl) = maybe_value.map_or((None, None), |value| {
+                (
+                    Some(value.value.into_inner()),
+                    value.ttl_since_unix_epoch_in_millis,
+                )
+            });
+            Ok(ResponseGet::new(response.status, value, ttl))
+        } else {
+            Err(Server(ServerError::NoValueReturned))
+        }
     }
 
+    /// Set a value for the given key with a time to live.
+    /// Existing values for the key are not overwritten.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn set(
         &self,
         key: String,
         value: String,
         ttl_since_unix_epoch_in_millis: Option<u128>,
-    ) -> Result<Response> {
+    ) -> Result<StatusCode> {
         let key = Key::parse(key)?;
         let value = Value::parse(value)?;
         let request = Request::Set {
@@ -82,25 +101,25 @@ impl Client {
             value,
             ttl_since_unix_epoch_in_millis,
         };
-        self.handle_request(request).await
+        let response = self.handle_request(request).await?;
+        Ok(response.status)
     }
 
+    /// Delete a key with its value from the cache.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn delete(&self, key: String) -> Result<Response> {
+    pub async fn delete(&self, key: String) -> Result<StatusCode> {
         let key = Key::parse(key)?;
         let request = Request::Delete(key);
-        self.handle_request(request).await
+        let response = self.handle_request(request).await?;
+        Ok(response.status)
     }
 
+    /// Clear the entire cache.
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn flush(&self) -> Result<Response> {
+    pub async fn flush(&self) -> Result<StatusCode> {
         let request = Request::Flush;
-        self.handle_request(request).await
-    }
-
-    #[cfg_attr(feature = "tracing", instrument(skip(self)))]
-    pub async fn send(&self, request: Request) -> Result<Response> {
-        self.handle_request(request).await
+        let response = self.handle_request(request).await?;
+        Ok(response.status)
     }
 
     async fn handle_request(&self, request: Request) -> Result<Response> {

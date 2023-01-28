@@ -3,7 +3,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use futures::future::join_all;
 use tokio::time::Instant;
 
-pub fn get_key(c: &mut Criterion) {
+fn get_key(c: &mut Criterion) {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -33,7 +33,7 @@ pub fn get_key(c: &mut Criterion) {
     });
 }
 
-pub fn get_same_key_in_parallel_single_client(c: &mut Criterion) {
+fn get_same_key_in_parallel_single_client(c: &mut Criterion) {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -76,7 +76,7 @@ pub fn get_same_key_in_parallel_single_client(c: &mut Criterion) {
     });
 }
 
-pub fn get_same_key_in_parallel_multiple_clients(c: &mut Criterion) {
+fn get_same_key_in_parallel_multiple_clients(c: &mut Criterion) {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

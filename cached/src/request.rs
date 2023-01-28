@@ -1,11 +1,11 @@
 use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
-use crate::error::{Error, Parse};
+use crate::error::{Error, ParseError};
 use crate::frame::RequestFrame;
 use crate::primitives::OpCode;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub enum Request {
+pub(crate) enum Request {
     Get(Key),
     Set {
         key: Key,
@@ -47,8 +47,8 @@ impl TryFrom<RequestFrame> for Request {
     fn try_from(frame: RequestFrame) -> Result<Self, Self::Error> {
         match frame.header.op_code {
             OpCode::Set => Ok(Request::Set {
-                key: frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
-                value: frame.value.ok_or(Error::Parse(Parse::ValueMissing))?,
+                key: frame.key.ok_or(Error::Parse(ParseError::KeyMissing))?,
+                value: frame.value.ok_or(Error::Parse(ParseError::ValueMissing))?,
                 ttl_since_unix_epoch_in_millis: frame
                     .header
                     .ttl_since_unix_epoch_in_millis
@@ -56,26 +56,26 @@ impl TryFrom<RequestFrame> for Request {
             }),
             OpCode::Get => {
                 if frame.value.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedValue));
+                    return Err(Error::Parse(ParseError::UnexpectedValue));
                 }
                 Ok(Request::Get(
-                    frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
+                    frame.key.ok_or(Error::Parse(ParseError::KeyMissing))?,
                 ))
             }
             OpCode::Delete => {
                 if frame.value.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedValue));
+                    return Err(Error::Parse(ParseError::UnexpectedValue));
                 }
                 Ok(Request::Delete(
-                    frame.key.ok_or(Error::Parse(Parse::KeyMissing))?,
+                    frame.key.ok_or(Error::Parse(ParseError::KeyMissing))?,
                 ))
             }
             OpCode::Flush => {
                 if frame.key.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedKey));
+                    return Err(Error::Parse(ParseError::UnexpectedKey));
                 }
                 if frame.value.is_some() {
-                    return Err(Error::Parse(Parse::UnexpectedValue));
+                    return Err(Error::Parse(ParseError::UnexpectedValue));
                 }
                 Ok(Request::Flush)
             }
@@ -87,7 +87,7 @@ impl TryFrom<RequestFrame> for Request {
 mod test {
     use super::*;
     use crate::domain::TTLSinceUnixEpochInMillis;
-    use crate::Request;
+    use crate::request::Request;
     use rstest::rstest;
 
     #[rstest]

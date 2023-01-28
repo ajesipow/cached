@@ -5,20 +5,20 @@ use crate::error::Result;
 pub(crate) mod header;
 use crate::domain::{Key, TTLSinceUnixEpochInMillis, Value};
 use crate::primitives::OpCode;
-use crate::Status;
+use crate::StatusCode;
 use header::*;
 
 #[derive(Debug)]
-pub struct ResponseFrame {
+pub(crate) struct ResponseFrame {
     pub header: ResponseHeader,
     pub key: Option<Key>,
     pub value: Option<Value>,
 }
 
 impl ResponseFrame {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
-        status: Status,
+        status: StatusCode,
         ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
         key: Option<Key>,
         value: Option<Value>,
@@ -41,14 +41,14 @@ impl ResponseFrame {
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct RequestFrame {
+pub(crate) struct RequestFrame {
     pub header: RequestHeader,
     pub key: Option<Key>,
     pub value: Option<Value>,
 }
 
 impl RequestFrame {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
         ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
         key: Option<Key>,

@@ -1,4 +1,4 @@
-use crate::primitives::Status;
+use crate::primitives::StatusCode;
 use crate::request::Request;
 use crate::response::{Response, ResponseBody, ResponseBodyGet};
 use std::sync::Arc;
@@ -15,7 +15,7 @@ use crate::{error, Error};
 use tracing::{debug, error, info, instrument};
 
 #[derive(Debug)]
-pub struct ServerInner {
+struct ServerInner {
     listener: TcpListener,
     db: Db,
     notify_shutdown: broadcast::Sender<()>,
@@ -80,7 +80,7 @@ impl Server {
             .expect("No port available, did you bind the server?")
     }
 
-    /// Panics if not socket address was provided (via `bind`).
+    /// Panics if no socket address was provided (via `bind`).
     pub async fn run(self) {
         let (notify_shutdown, _) = broadcast::channel(1);
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
@@ -186,7 +186,7 @@ impl Handler {
                 Some(val) => {
                     match Value::parse(val.value.to_string()) {
                         Ok(value) => Response::new(
-                            Status::Ok,
+                            StatusCode::Ok,
                             ResponseBody::Get(Some(ResponseBodyGet {
                                 key,
                                 value,
@@ -194,14 +194,14 @@ impl Handler {
                             })),
                         ),
                         Err(_) => Response::new(
-                            Status::InternalError,
+                            StatusCode::InternalError,
                             // TODO pass error as value
                             ResponseBody::Get(None),
                         ),
                     }
                 }
                 // TODO pass error as value too
-                None => Response::new(Status::KeyNotFound, ResponseBody::Get(None)),
+                None => Response::new(StatusCode::KeyNotFound, ResponseBody::Get(None)),
             },
             Request::Set {
                 key,
@@ -209,7 +209,7 @@ impl Handler {
                 ttl_since_unix_epoch_in_millis,
             } => {
                 if self.db.contains_key(&key).await {
-                    Response::new(Status::KeyExists, ResponseBody::Set)
+                    Response::new(StatusCode::KeyExists, ResponseBody::Set)
                 } else {
                     self.db
                         .insert(
@@ -218,20 +218,20 @@ impl Handler {
                             ttl_since_unix_epoch_in_millis,
                         )
                         .await;
-                    Response::new(Status::Ok, ResponseBody::Set)
+                    Response::new(StatusCode::Ok, ResponseBody::Set)
                 }
             }
             Request::Delete(key) => {
                 if !self.db.contains_key(&key).await {
-                    Response::new(Status::KeyNotFound, ResponseBody::Delete)
+                    Response::new(StatusCode::KeyNotFound, ResponseBody::Delete)
                 } else {
                     self.db.remove(&key).await;
-                    Response::new(Status::Ok, ResponseBody::Delete)
+                    Response::new(StatusCode::Ok, ResponseBody::Delete)
                 }
             }
             Request::Flush => {
                 self.db.clear().await;
-                Response::new(Status::Ok, ResponseBody::Flush)
+                Response::new(StatusCode::Ok, ResponseBody::Flush)
             }
         }
     }

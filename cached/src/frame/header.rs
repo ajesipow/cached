@@ -1,13 +1,13 @@
 use crate::domain::TTLSinceUnixEpochInMillis;
 use crate::error::{Error, FrameError, Result};
-use crate::primitives::{OpCode, Status};
+use crate::primitives::{OpCode, StatusCode};
 use bytes::{Buf, Bytes};
 
 static HEADER_SIZE_BYTES: u8 = 23;
 
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct RequestHeader {
+pub(crate) struct RequestHeader {
     pub op_code: OpCode,
     pub key_length: u8,
     pub ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
@@ -15,7 +15,7 @@ pub struct RequestHeader {
 }
 
 impl RequestHeader {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
         key_length: u8,
         total_frame_length: u32,
@@ -29,25 +29,25 @@ impl RequestHeader {
         }
     }
 
-    pub fn size() -> u8 {
+    pub(crate) fn size() -> u8 {
         HEADER_SIZE_BYTES
     }
 }
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct ResponseHeader {
+pub(crate) struct ResponseHeader {
     pub op_code: OpCode,
-    pub status: Status,
+    pub status: StatusCode,
     pub key_length: u8,
     pub ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
     pub total_frame_length: u32,
 }
 
 impl ResponseHeader {
-    pub fn new(
+    pub(crate) fn new(
         op_code: OpCode,
-        status: Status,
+        status: StatusCode,
         key_length: u8,
         total_frame_length: u32,
         ttl_since_unix_epoch_in_millis: TTLSinceUnixEpochInMillis,
@@ -61,7 +61,7 @@ impl ResponseHeader {
         }
     }
 
-    pub fn size() -> u8 {
+    pub(crate) fn size() -> u8 {
         HEADER_SIZE_BYTES
     }
 }
@@ -97,7 +97,7 @@ impl TryFrom<Bytes> for ResponseHeader {
             return Err(Error::Frame(FrameError::Incomplete));
         }
         let op_code = OpCode::try_from(value.get_u8())?;
-        let status = Status::try_from(value.get_u8())?;
+        let status = StatusCode::try_from(value.get_u8())?;
         let key_length = value.get_u8();
         let ttl_since_unix_epoch_in_millis =
             TTLSinceUnixEpochInMillis::parse(Some(value.get_u128()));

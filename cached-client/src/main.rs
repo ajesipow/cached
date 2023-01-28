@@ -1,6 +1,6 @@
 mod input_parsing;
 
-use crate::input_parsing::{convert_error, parse_input};
+use crate::input_parsing::{convert_error, parse_input, Request};
 use cached::Client;
 use clap::Parser;
 use nom::Err;
@@ -28,9 +28,27 @@ async fn main() {
         let parsed_input = parse_input(&input);
         match parsed_input {
             Ok((_, maybe_request)) => match maybe_request {
-                Some(request) => match client.send(request).await {
-                    Ok(response) => println!("{}", response),
-                    Err(e) => println!("{:?}", e),
+                Some(request) => match request {
+                    Request::Get(key) => {
+                        let res = client.get(key).await;
+                        println!("{:?}", res);
+                    }
+                    Request::Set {
+                        key,
+                        value,
+                        ttl_since_unix_epoch_in_millis,
+                    } => {
+                        let res = client.set(key, value, ttl_since_unix_epoch_in_millis).await;
+                        println!("{:?}", res);
+                    }
+                    Request::Delete(key) => {
+                        let res = client.delete(key).await;
+                        println!("{:?}", res);
+                    }
+                    Request::Flush => {
+                        let res = client.flush().await;
+                        println!("{:?}", res);
+                    }
                 },
                 None => break,
             },
