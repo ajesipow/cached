@@ -19,9 +19,9 @@ pub(crate) fn parse_request_frame(input: &[u8]) -> Result<RequestFrame> {
         },
     ) = parse_request_primitives(input).map_err(|e| {
         if e.is_incomplete() {
-            Error::Frame(FrameError::Incomplete)
+            Error::new_frame(FrameError::Incomplete)
         } else {
-            Error::Parse(ParseError::String)
+            Error::new_parse(ParseError::Other)
         }
     })?;
     let key = match key_bytes.len() {
@@ -29,7 +29,7 @@ pub(crate) fn parse_request_frame(input: &[u8]) -> Result<RequestFrame> {
         // TODO use Cow instead?
         _ => {
             let key = String::from_utf8(key_bytes.to_vec())
-                .map_err(|_| Error::Parse(ParseError::String))?;
+                .map_err(|e| Error::new_parse(ParseError::String(e)))?;
             let key = Key::parse(key)?;
             Some(key)
         }
@@ -39,7 +39,7 @@ pub(crate) fn parse_request_frame(input: &[u8]) -> Result<RequestFrame> {
         // TODO use Cow instead?
         _ => {
             let value = String::from_utf8(value_bytes.to_vec())
-                .map_err(|_| Error::Parse(ParseError::String))?;
+                .map_err(|e| Error::new_parse(ParseError::String(e)))?;
             let value = Value::parse(value)?;
             Some(value)
         }
@@ -89,9 +89,9 @@ pub(crate) fn parse_response_frame(input: &[u8]) -> Result<ResponseFrame> {
         },
     ) = parse_response_primitives(input).map_err(|e| {
         if e.is_incomplete() {
-            Error::Frame(FrameError::Incomplete)
+            Error::new_frame(FrameError::Incomplete)
         } else {
-            Error::Parse(ParseError::String)
+            Error::new_parse(ParseError::Other)
         }
     })?;
     let key = match key_bytes.len() {
@@ -99,7 +99,7 @@ pub(crate) fn parse_response_frame(input: &[u8]) -> Result<ResponseFrame> {
         // TODO use Cow instead?
         _ => {
             let key = String::from_utf8(key_bytes.to_vec())
-                .map_err(|_| Error::Parse(ParseError::String))?;
+                .map_err(|e| Error::new_parse(ParseError::String(e)))?;
             let key = Key::parse(key)?;
             Some(key)
         }
@@ -109,7 +109,7 @@ pub(crate) fn parse_response_frame(input: &[u8]) -> Result<ResponseFrame> {
         // TODO use Cow instead?
         _ => {
             let value = String::from_utf8(value_bytes.to_vec())
-                .map_err(|_| Error::Parse(ParseError::String))?;
+                .map_err(|e| Error::new_parse(ParseError::String(e)))?;
             let value = Value::parse(value)?;
             Some(value)
         }

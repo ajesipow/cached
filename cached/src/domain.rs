@@ -34,7 +34,7 @@ impl Display for Key {
 impl Value {
     pub(crate) fn parse(v: String) -> Result<Self> {
         if v.len() > MAX_VALUE_LENGTH as usize {
-            return Err(Error::Frame(FrameError::ValueTooLong));
+            return Err(Error::new_frame(FrameError::ValueTooLong));
         }
         Ok(Self(v))
     }
@@ -57,7 +57,7 @@ impl Key {
     pub(crate) fn parse(k: String) -> Result<Self> {
         // Key must not be longer than u8::MAX
         if k.len() > u8::MAX as usize {
-            return Err(Error::Frame(FrameError::KeyTooLong));
+            return Err(Error::new_frame(FrameError::KeyTooLong));
         }
         Ok(Self(k))
     }

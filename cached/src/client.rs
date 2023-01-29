@@ -4,7 +4,6 @@ use crate::error::{ConnectionError, ServerError};
 use crate::error::{Error, Result};
 use crate::request::Request;
 use crate::response::{Response, ResponseBody, ResponseGet};
-use crate::Error::Server;
 use crate::StatusCode;
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::spawn;
@@ -81,7 +80,7 @@ impl Client {
             });
             Ok(ResponseGet::new(response.status, value, ttl))
         } else {
-            Err(Server(ServerError::NoValueReturned))
+            Err(Error::new_server(ServerError::NoValueReturned))
         }
     }
 
@@ -130,8 +129,8 @@ impl Client {
                 responder: tx,
             })
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Send))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Send))?;
         rx.await
-            .map_err(|_| Error::Connection(ConnectionError::Receive))?
+            .map_err(|_| Error::new_connection(ConnectionError::Receive))?
     }
 }

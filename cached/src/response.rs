@@ -141,9 +141,9 @@ impl TryFrom<ResponseFrame> for Response {
                             ttl_since_unix_epoch_in_millis,
                         }))
                     }
-                    (Some(_), None) => Err(Error::Parse(ParseError::ValueMissing)),
-                    (None, Some(_)) => Err(Error::Parse(ParseError::KeyMissing)),
-                    (None, None) => Err(Error::Parse(ParseError::KeyAndValueMissing)),
+                    (Some(_), None) => Err(Error::new_parse(ParseError::ValueMissing)),
+                    (None, Some(_)) => Err(Error::new_parse(ParseError::KeyMissing)),
+                    (None, None) => Err(Error::new_parse(ParseError::KeyAndValueMissing)),
                 };
                 let body = match body_result {
                     Ok(Some(response_body)) => Some(response_body),
@@ -179,9 +179,9 @@ impl TryFrom<ResponseFrame> for Response {
 
 fn ensure_key_and_value_are_none(key: Option<Key>, value: Option<Value>) -> Result<()> {
     if key.is_some() {
-        Err(Error::Parse(ParseError::UnexpectedKey))
+        Err(Error::new_parse(ParseError::UnexpectedKey))
     } else if value.is_some() {
-        Err(Error::Parse(ParseError::UnexpectedValue))
+        Err(Error::new_parse(ParseError::UnexpectedValue))
     } else {
         Ok(())
     }
@@ -226,11 +226,11 @@ mod test {
         let ttl = TTLSinceUnixEpochInMillis::parse(ttl);
         let resp_frame = ResponseFrame::new(op_code, status, ttl, key, value).unwrap();
         assert_eq!(
-            Response::try_from(resp_frame),
-            Ok(Response {
+            Response::try_from(resp_frame).unwrap(),
+            Response {
                 status,
                 body: expected_response_body
-            })
+            }
         )
     }
 
