@@ -135,7 +135,7 @@ impl TryFrom<Bytes> for RequestHeader {
 
     fn try_from(mut value: Bytes) -> Result<Self> {
         if value.remaining() < HEADER_SIZE_BYTES as usize {
-            return Err(Error::Frame(FrameError::Incomplete));
+            return Err(Error::new_frame(FrameError::Incomplete));
         }
         let op_code = OpCode::try_from(value.get_u8())?;
         let _ = value.get_u8();
@@ -158,7 +158,7 @@ impl TryFrom<Bytes> for ResponseHeader {
 
     fn try_from(mut value: Bytes) -> Result<Self> {
         if value.remaining() < HEADER_SIZE_BYTES as usize {
-            return Err(Error::Frame(FrameError::Incomplete));
+            return Err(Error::new_frame(FrameError::Incomplete));
         }
         let op_code = OpCode::try_from(value.get_u8())?;
         let status = StatusCode::try_from(value.get_u8())?;
@@ -181,6 +181,7 @@ impl TryFrom<Bytes> for ResponseHeader {
 mod test {
     use super::*;
     use crate::domain::{Key, Value};
+    use crate::error::ErrorInner;
 
     #[test]
     fn test_parsing_request_with_valid_long_key_works() {
@@ -194,7 +195,10 @@ mod test {
     #[test]
     fn test_parsing_request_with_too_long_key_fails() {
         let key = "a".repeat(u8::MAX as usize + 1);
-        assert_eq!(Key::parse(key), Err(Error::Frame(FrameError::KeyTooLong)));
+        assert!(matches!(
+            Key::parse(key),
+            Err(Error(ErrorInner::Frame(FrameError::KeyTooLong)))
+        ));
     }
 
     #[test]
@@ -209,9 +213,9 @@ mod test {
     #[test]
     fn test_parsing_request_header_with_too_long_value_fails() {
         let value = "a".repeat((1024 * 1024) as usize + 1);
-        assert_eq!(
+        assert!(matches!(
             Value::parse(value),
-            Err(Error::Frame(FrameError::ValueTooLong))
-        );
+            Err(Error(ErrorInner::Frame(FrameError::ValueTooLong)))
+        ));
     }
 }

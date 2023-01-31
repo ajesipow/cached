@@ -1,4 +1,4 @@
-use crate::error::{ConnectionError, Error, FrameError, Result};
+use crate::error::{ConnectionError, Error, Result};
 use crate::frame::{RequestFrame, ResponseFrame};
 use crate::parsing::{parse_request_frame, parse_response_frame};
 use crate::request::Request;
@@ -30,20 +30,18 @@ impl Connection {
         self.write_request(request).await?;
         match self.read_response().await? {
             Some(response) => Ok(response),
-            None => Err(Error::Connection(ConnectionError::Read(
-                "Could not read response".to_string(),
-            ))),
+            None => Err(Error::new_connection(ConnectionError::ReadResponse)),
         }
     }
 
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub(crate) async fn read_request(&mut self) -> Result<Option<Request>> {
         loop {
-            self.stream.get_ref().readable().await.map_err(|_| {
-                Error::Connection(ConnectionError::Read(
-                    "Could not read from stream".to_string(),
-                ))
-            })?;
+            self.stream
+                .get_ref()
+                .readable()
+                .await
+                .map_err(|_| Error::new_connection(ConnectionError::ReadResponse))?;
             if let Some(request) = read_request(&mut self.buffer)? {
                 return Ok(Some(request));
             }
@@ -51,12 +49,12 @@ impl Connection {
                 .stream
                 .read_buf(&mut self.buffer)
                 .await
-                .map_err(|e| Error::Connection(ConnectionError::Read(e.to_string())))?
+                .map_err(|_| Error::new_connection(ConnectionError::ReadResponse))?
             {
                 return if self.buffer.is_empty() {
                     Ok(None)
                 } else {
-                    Err(Error::Connection(ConnectionError::ResetByPeer))
+                    Err(Error::new_connection(ConnectionError::ResetByPeer))
                 };
             }
         }
@@ -65,11 +63,11 @@ impl Connection {
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub(crate) async fn read_response(&mut self) -> Result<Option<Response>> {
         loop {
-            self.stream.get_ref().readable().await.map_err(|_| {
-                Error::Connection(ConnectionError::Read(
-                    "Could not read from stream".to_string(),
-                ))
-            })?;
+            self.stream
+                .get_ref()
+                .readable()
+                .await
+                .map_err(|_| Error::new_connection(ConnectionError::ReadResponse))?;
             if let Some(response) = read_response(&mut self.buffer)? {
                 return Ok(Some(response));
             }
@@ -77,12 +75,12 @@ impl Connection {
                 .stream
                 .read_buf(&mut self.buffer)
                 .await
-                .map_err(|e| Error::Connection(ConnectionError::Read(e.to_string())))?
+                .map_err(|_| Error::new_connection(ConnectionError::ReadResponse))?
             {
                 return if self.buffer.is_empty() {
                     Ok(None)
                 } else {
-                    Err(Error::Connection(ConnectionError::ResetByPeer))
+                    Err(Error::new_connection(ConnectionError::ResetByPeer))
                 };
             }
         }
@@ -97,45 +95,45 @@ impl Connection {
             .get_ref()
             .writable()
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         // TODO re-implement this elsewhere, the order etc is very specific to frame and should live there probably
         self.stream
             .write_u8(frame.header.op_code as u8)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         // Padding byte
         self.stream
             .write_u8(0)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         self.stream
             .write_u8(frame.header.key_length)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         self.stream
             .write_u128(frame.header.ttl_since_unix_epoch_in_millis.into_inner())
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         self.stream
             .write_u32(frame.header.total_frame_length)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         if let Some(key) = frame.key {
             self.stream
                 .write_all(key.as_bytes())
                 .await
-                .map_err(|_| Error::Connection(ConnectionError::Write))?;
+                .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         }
         if let Some(value) = frame.value {
             self.stream
                 .write_all(value.as_bytes())
                 .await
-                .map_err(|_| Error::Connection(ConnectionError::Write))?;
+                .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         }
         self.stream
             .flush()
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         Ok(())
     }
 
@@ -148,51 +146,51 @@ impl Connection {
             .get_ref()
             .writable()
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         // TODO re-implement this elsewhere, the order etc is very specific to frame and should live there probably
         self.stream
             .write_u8(frame.header.op_code as u8)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         self.stream
             .write_u8(frame.header.status as u8)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         self.stream
             .write_u8(frame.header.key_length)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         self.stream
             .write_u128(frame.header.ttl_since_unix_epoch_in_millis.into_inner())
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         self.stream
             .write_u32(frame.header.total_frame_length)
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         if let Some(key) = frame.key {
             self.stream
                 .write_all(key.as_bytes())
                 .await
-                .map_err(|_| Error::Connection(ConnectionError::Write))?;
+                .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         }
         if let Some(value) = frame.value {
             self.stream
                 .write_all(value.as_bytes())
                 .await
-                .map_err(|_| Error::Connection(ConnectionError::Write))?;
+                .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         }
         self.stream
             .flush()
             .await
-            .map_err(|_| Error::Connection(ConnectionError::Write))?;
+            .map_err(|_| Error::new_connection(ConnectionError::Write))?;
         Ok(())
     }
 }
 
 fn read_request(buffer: &mut BytesMut) -> Result<Option<Request>> {
     match parse_request_frame(buffer.as_bytes()) {
-        Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
+        Err(e) if e.is_incomplete_frame() => Ok(None),
         Ok(request_frame) => {
             buffer.advance(request_frame.header.total_frame_length as usize);
             Request::try_from(request_frame).map(Some)
@@ -203,7 +201,7 @@ fn read_request(buffer: &mut BytesMut) -> Result<Option<Request>> {
 
 fn read_response(buffer: &mut BytesMut) -> Result<Option<Response>> {
     match parse_response_frame(buffer.as_bytes()) {
-        Err(Error::Frame(FrameError::Incomplete)) => Ok(None),
+        Err(e) if e.is_incomplete_frame() => Ok(None),
         Ok(response_frame) => {
             buffer.advance(response_frame.header.total_frame_length as usize);
             Response::try_from(response_frame).map(Some)

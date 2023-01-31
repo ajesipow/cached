@@ -33,7 +33,7 @@ impl TryFrom<u8> for StatusCode {
             1 => Ok(StatusCode::KeyNotFound),
             2 => Ok(StatusCode::KeyExists),
             3 => Ok(StatusCode::InternalError),
-            _ => Err(Error::Frame(FrameError::InvalidStatusCode)),
+            _ => Err(Error::new_frame(FrameError::InvalidStatusCode)),
         }
     }
 }
@@ -57,7 +57,7 @@ impl TryFrom<u8> for OpCode {
             2 => Ok(OpCode::Get),
             3 => Ok(OpCode::Delete),
             4 => Ok(OpCode::Flush),
-            _ => Err(Error::Frame(FrameError::InvalidOpCode)),
+            _ => Err(Error::new_frame(FrameError::InvalidOpCode)),
         }
     }
 }
@@ -77,10 +77,10 @@ mod test {
 
     #[test]
     fn test_op_code_deserialisation_works() {
-        assert_eq!(OpCode::try_from(1), Ok(OpCode::Set));
-        assert_eq!(OpCode::try_from(2), Ok(OpCode::Get));
-        assert_eq!(OpCode::try_from(3), Ok(OpCode::Delete));
-        assert_eq!(OpCode::try_from(4), Ok(OpCode::Flush));
+        assert_eq!(OpCode::try_from(1).unwrap(), OpCode::Set);
+        assert_eq!(OpCode::try_from(2).unwrap(), OpCode::Get);
+        assert_eq!(OpCode::try_from(3).unwrap(), OpCode::Delete);
+        assert_eq!(OpCode::try_from(4).unwrap(), OpCode::Flush);
     }
 
     #[rstest]
@@ -105,10 +105,10 @@ mod test {
 
     #[test]
     fn test_status_code_deserialization_works() {
-        assert_eq!(StatusCode::try_from(0), Ok(StatusCode::Ok));
-        assert_eq!(StatusCode::try_from(1), Ok(StatusCode::KeyNotFound));
-        assert_eq!(StatusCode::try_from(2), Ok(StatusCode::KeyExists));
-        assert_eq!(StatusCode::try_from(3), Ok(StatusCode::InternalError));
+        assert_eq!(StatusCode::try_from(0).unwrap(), StatusCode::Ok);
+        assert_eq!(StatusCode::try_from(1).unwrap(), StatusCode::KeyNotFound);
+        assert_eq!(StatusCode::try_from(2).unwrap(), StatusCode::KeyExists);
+        assert_eq!(StatusCode::try_from(3).unwrap(), StatusCode::InternalError);
     }
 
     #[rstest]

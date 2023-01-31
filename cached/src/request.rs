@@ -47,8 +47,12 @@ impl TryFrom<RequestFrame> for Request {
     fn try_from(frame: RequestFrame) -> Result<Self, Self::Error> {
         match frame.header.op_code {
             OpCode::Set => Ok(Request::Set {
-                key: frame.key.ok_or(Error::Parse(ParseError::KeyMissing))?,
-                value: frame.value.ok_or(Error::Parse(ParseError::ValueMissing))?,
+                key: frame
+                    .key
+                    .ok_or_else(|| Error::new_parse(ParseError::KeyMissing))?,
+                value: frame
+                    .value
+                    .ok_or_else(|| Error::new_parse(ParseError::ValueMissing))?,
                 ttl_since_unix_epoch_in_millis: frame
                     .header
                     .ttl_since_unix_epoch_in_millis
@@ -56,26 +60,30 @@ impl TryFrom<RequestFrame> for Request {
             }),
             OpCode::Get => {
                 if frame.value.is_some() {
-                    return Err(Error::Parse(ParseError::UnexpectedValue));
+                    return Err(Error::new_parse(ParseError::UnexpectedValue));
                 }
                 Ok(Request::Get(
-                    frame.key.ok_or(Error::Parse(ParseError::KeyMissing))?,
+                    frame
+                        .key
+                        .ok_or_else(|| Error::new_parse(ParseError::KeyMissing))?,
                 ))
             }
             OpCode::Delete => {
                 if frame.value.is_some() {
-                    return Err(Error::Parse(ParseError::UnexpectedValue));
+                    return Err(Error::new_parse(ParseError::UnexpectedValue));
                 }
                 Ok(Request::Delete(
-                    frame.key.ok_or(Error::Parse(ParseError::KeyMissing))?,
+                    frame
+                        .key
+                        .ok_or_else(|| Error::new_parse(ParseError::KeyMissing))?,
                 ))
             }
             OpCode::Flush => {
                 if frame.key.is_some() {
-                    return Err(Error::Parse(ParseError::UnexpectedKey));
+                    return Err(Error::new_parse(ParseError::UnexpectedKey));
                 }
                 if frame.value.is_some() {
-                    return Err(Error::Parse(ParseError::UnexpectedValue));
+                    return Err(Error::new_parse(ParseError::UnexpectedValue));
                 }
                 Ok(Request::Flush)
             }
@@ -120,7 +128,7 @@ mod test {
         let value = value.map(Value::parse).transpose().unwrap();
         let ttl = TTLSinceUnixEpochInMillis::parse(None);
         let req_frame = RequestFrame::new(op_code, ttl, key, value).unwrap();
-        assert_eq!(Request::try_from(req_frame), Ok(expected_request))
+        assert_eq!(Request::try_from(req_frame).unwrap(), expected_request)
     }
 
     #[rstest]
