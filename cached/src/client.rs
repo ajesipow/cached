@@ -1,6 +1,6 @@
 use crate::connection::Connection;
 use crate::domain::{Key, Value};
-use crate::error::{ConnectionError, ServerError};
+use crate::error::{ClientError, ConnectionError};
 use crate::error::{Error, Result};
 use crate::request::Request;
 use crate::response::{Response, ResponseBody, ResponseGet};
@@ -80,7 +80,7 @@ impl Client {
             });
             Ok(ResponseGet::new(response.status, value, ttl))
         } else {
-            Err(Error::new_server(ServerError::NoValueReturned))
+            Err(Error::new_client(ClientError::ExpectedValue))
         }
     }
 
