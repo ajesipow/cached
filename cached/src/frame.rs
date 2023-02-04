@@ -181,7 +181,7 @@ impl TryFrom<Bytes> for ResponseHeader {
 mod test {
     use super::*;
     use crate::domain::{Key, Value};
-    use crate::error::ErrorInner;
+    use crate::error::{ErrorInner, ParseError};
 
     #[test]
     fn test_parsing_request_with_valid_long_key_works() {
@@ -197,7 +197,7 @@ mod test {
         let key = "a".repeat(u8::MAX as usize + 1);
         assert!(matches!(
             Key::parse(key),
-            Err(Error(ErrorInner::Frame(FrameError::KeyTooLong)))
+            Err(Error(ErrorInner::Parse(ParseError::KeyTooLong)))
         ));
     }
 
@@ -215,7 +215,7 @@ mod test {
         let value = "a".repeat((1024 * 1024) as usize + 1);
         assert!(matches!(
             Value::parse(value),
-            Err(Error(ErrorInner::Frame(FrameError::ValueTooLong)))
+            Err(Error(ErrorInner::Parse(ParseError::ValueTooLong)))
         ));
     }
 }

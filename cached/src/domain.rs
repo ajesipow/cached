@@ -1,4 +1,4 @@
-use crate::error::FrameError;
+use crate::error::ParseError;
 use crate::error::Result;
 use crate::Error;
 use std::fmt::{Display, Formatter};
@@ -34,7 +34,7 @@ impl Display for Key {
 impl Value {
     pub(crate) fn parse(v: String) -> Result<Self> {
         if v.len() > MAX_VALUE_LENGTH as usize {
-            return Err(Error::new_frame(FrameError::ValueTooLong));
+            return Err(Error::new_parse(ParseError::ValueTooLong));
         }
         Ok(Self(v))
     }
@@ -57,7 +57,7 @@ impl Key {
     pub(crate) fn parse(k: String) -> Result<Self> {
         // Key must not be longer than u8::MAX
         if k.len() > u8::MAX as usize {
-            return Err(Error::new_frame(FrameError::KeyTooLong));
+            return Err(Error::new_parse(ParseError::KeyTooLong));
         }
         Ok(Self(k))
     }
@@ -76,6 +76,7 @@ impl Key {
     }
 }
 
+// TODO Do we really need to implement Deref here?
 impl Deref for Key {
     type Target = str;
 
@@ -84,6 +85,7 @@ impl Deref for Key {
     }
 }
 
+// TODO Do we really need to implement Deref here?
 impl Deref for Value {
     type Target = str;
 

@@ -53,6 +53,10 @@ pub(crate) enum ParseError {
     UnexpectedKey,
     #[error("unexpected value")]
     UnexpectedValue,
+    #[error("key too long")]
+    KeyTooLong,
+    #[error("value too long")]
+    ValueTooLong,
     #[error(transparent)]
     String(#[from] std::string::FromUtf8Error),
     // TODO better nom error
@@ -68,10 +72,6 @@ pub(crate) enum FrameError {
     InvalidOpCode,
     #[error("invalid StatusCode")]
     InvalidStatusCode,
-    #[error("key too long")]
-    KeyTooLong,
-    #[error("value too long")]
-    ValueTooLong,
 }
 
 #[derive(Error, Debug)]
