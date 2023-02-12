@@ -69,7 +69,7 @@ fn get_same_key_in_parallel_single_client(c: &mut Criterion) {
 
             let failed = responses.iter().filter(|resp| resp.is_err()).count();
             if failed > 0 {
-                eprintln!("failed {} requests (might be bench timeout)", failed);
+                eprintln!("failed {failed} requests (might be bench timeout)");
             };
             elapsed
         })
@@ -112,7 +112,7 @@ fn get_same_key_in_parallel_multiple_clients(c: &mut Criterion) {
 
             let failed = responses.iter().filter(|resp| resp.is_err()).count();
             if failed > 0 {
-                eprintln!("failed {} requests (might be bench timeout)", failed);
+                eprintln!("failed {failed} requests (might be bench timeout)");
             };
             elapsed
         })

@@ -90,13 +90,11 @@ impl Connection {
     pub(crate) async fn write_request(&mut self, request: Request) -> Result<()> {
         // TODO do we even need a Frame?
         let frame = RequestFrame::try_from(request)?;
-        // TODO error conversion
         self.stream
             .get_ref()
             .writable()
             .await
             .map_err(|_| Error::new_connection(ConnectionError::Write))?;
-        // TODO re-implement this elsewhere, the order etc is very specific to frame and should live there probably
         self.stream
             .write_u8(frame.header.op_code as u8)
             .await
