@@ -75,8 +75,8 @@ impl Client {
     /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
     /// # let port = server.port();
     /// # tokio::spawn(async { server.run().await;});
-    /// # let addr = format!("127.0.0.1:{port}");
-    /// let client = Client::new(addr).await;
+    /// # let host = "127.0.0.1";
+    /// let client = Client::new(format!("{host}:{port}")).await;
     /// # Ok(())
     /// # }
     /// ```
@@ -104,8 +104,8 @@ impl Client {
     /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
     /// # let port = server.port();
     /// # tokio::spawn(async { server.run().await;});
-    /// # let addr = format!("127.0.0.1:{port}");
-    /// let conn = ClientConnection::new(addr).await;
+    /// # let host = "127.0.0.1";
+    /// let conn = ClientConnection::new(format!("{host}:{port}")).await;
     ///
     /// let client_1 = Client::with_connection(&conn);
     /// let response = client_1.set("foo", "bar", None).await.unwrap();
@@ -136,8 +136,8 @@ impl Client {
     /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
     /// # let port = server.port();
     /// # tokio::spawn(async { server.run().await;});
-    /// # let addr = format!("127.0.0.1:{port}");
-    /// let client = Client::new(addr).await;
+    /// # let host = "127.0.0.1";
+    /// let client = Client::new(format!("{host}:{port}")).await;
     /// client.set("foo", "bar", None).await.unwrap();
     ///
     /// let response = client.get("foo").await.unwrap();
@@ -193,8 +193,8 @@ impl Client {
     /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
     /// # let port = server.port();
     /// # tokio::spawn(async { server.run().await;});
-    /// # let addr = format!("127.0.0.1:{port}");
-    /// let client = Client::new(addr).await;
+    /// # let host = "127.0.0.1";
+    /// let client = Client::new(format!("{host}:{port}")).await;
     /// let response = client.set("foo", "bar", None).await;
     /// assert_eq!(response.unwrap(), StatusCode::Ok);
     /// # Ok(())
@@ -237,8 +237,8 @@ impl Client {
     /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
     /// # let port = server.port();
     /// # tokio::spawn(async { server.run().await;});
-    /// # let addr = format!("127.0.0.1:{port}");
-    /// let client = Client::new(addr).await;
+    /// # let host = "127.0.0.1";
+    /// let client = Client::new(format!("{host}:{port}")).await;
     /// client.set("foo", "bar", None).await.unwrap();
     ///
     /// let response = client.get("foo").await.unwrap();
@@ -279,8 +279,8 @@ impl Client {
     /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
     /// # let port = server.port();
     /// # tokio::spawn(async { server.run().await;});
-    /// # let addr = format!("127.0.0.1:{port}");
-    /// let client = Client::new(addr).await;
+    /// # let host = "127.0.0.1";
+    /// let client = Client::new(format!("{host}:{port}")).await;
     /// client.set("foo", "bar", None).await?;
     ///
     /// let response = client.get("foo").await?;
@@ -301,7 +301,6 @@ impl Client {
         Ok(response.status)
     }
 
-    ///
     async fn handle_request(&self, request: Request) -> Result<Response> {
         let (tx, rx) = oneshot::channel();
         self.conn
