@@ -21,7 +21,8 @@ update-nightly-fmt: ## Installs/updates the nightly rustfmt installation
 all: format check ## Formats and checks the code
 
 test: ## Run all tests
-	cargo test
+	cargo test --lib --bins --tests
+	cargo test --doc -- --test-threads 1
 
 
 # --------------Configuration-------------

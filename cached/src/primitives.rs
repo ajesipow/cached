@@ -4,7 +4,7 @@ use crate::error::Result;
 use std::fmt;
 use std::fmt::Formatter;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(u8)]
 pub enum StatusCode {
     Ok = 0,

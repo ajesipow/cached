@@ -57,7 +57,7 @@ impl Server {
     pub async fn bind<A: ToSocketAddrs>(mut self, addr: A) -> error::Result<Self> {
         let listener = TcpListener::bind(addr)
             .await
-            .map_err(|_| Error::new_connection(ConnectionError::Bind))?;
+            .map_err(|e| Error::new_connection(ConnectionError::Io(e)))?;
         let port = listener
             .local_addr()
             .map_err(|e| Error::new_connection(ConnectionError::Io(e)))?
@@ -128,7 +128,7 @@ impl ServerInner {
             self.connection_limit
                 .acquire()
                 .await
-                .map_err(|_| Error::new_connection(ConnectionError::AcquireSemaphore))?
+                .map_err(|e| Error::new_connection(ConnectionError::Acquire(e)))?
                 .forget();
 
             let (stream, _) = self

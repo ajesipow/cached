@@ -14,7 +14,7 @@ pub(crate) struct Response {
 /// The response struct for a GET request.
 ///
 /// The `value` is `None` if the key does not exist in the cache.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ResponseGet {
     status: StatusCode,
     value: Option<String>,
@@ -83,7 +83,7 @@ impl fmt::Display for ResponseBody {
             Self::Flush => write!(f, "FLUSH"),
             Self::Get(maybe_get) => match maybe_get {
                 None => write!(f, "GET None"),
-                Some(get_resp) => write!(f, "{}", get_resp),
+                Some(get_resp) => write!(f, "{get_resp}"),
             },
         }
     }

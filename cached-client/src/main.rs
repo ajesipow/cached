@@ -17,7 +17,7 @@ struct Cli {
 async fn main() {
     let cli = Cli::parse();
     let port = cli.port;
-    let server_addr = format!("127.0.0.1:{}", port);
+    let server_addr = format!("127.0.0.1:{port}");
     let client = Client::new(&server_addr).await;
     let mut input = String::new();
     loop {
@@ -31,7 +31,7 @@ async fn main() {
                 Some(request) => match request {
                     Request::Get(key) => {
                         let res = client.get(key).await;
-                        println!("{:?}", res);
+                        println!("{res:?}");
                     }
                     Request::Set {
                         key,
@@ -39,22 +39,22 @@ async fn main() {
                         ttl_since_unix_epoch_in_millis,
                     } => {
                         let res = client.set(key, value, ttl_since_unix_epoch_in_millis).await;
-                        println!("{:?}", res);
+                        println!("{res:?}");
                     }
                     Request::Delete(key) => {
                         let res = client.delete(key).await;
-                        println!("{:?}", res);
+                        println!("{res:?}");
                     }
                     Request::Flush => {
                         let res = client.flush().await;
-                        println!("{:?}", res);
+                        println!("{res:?}");
                     }
                 },
                 None => break,
             },
             Err(Err::Failure(f)) => match convert_error(f) {
                 Some(context) => {
-                    eprintln!("{}", context);
+                    eprintln!("{context}");
                 }
                 None => eprintln!("Invalid command"),
             },
