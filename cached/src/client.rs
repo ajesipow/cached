@@ -65,22 +65,20 @@ impl Client {
     ///
     /// ```
     /// use cached::Client;
-    /// use cached::Server;
+    /// # use cached::Server;
+    /// # use cached::Error;
     /// use cached::StatusCode;
     /// use cached::ClientConnection;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     tokio::spawn(async {
-    ///         Server::new()
-    ///             .bind("127.0.0.1:6543")
-    ///             .await
-    ///             .unwrap()
-    ///             .run()
-    ///             .await;
-    ///     });
-    ///     let client = Client::new("127.0.0.1:6543").await;
-    /// }
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// # let addr = format!("127.0.0.1:{port}");
+    /// let client = Client::new(addr).await;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let conn = ClientConnection::new(addr).await;
@@ -96,30 +94,28 @@ impl Client {
     ///
     /// ```
     /// use cached::Client;
-    /// use cached::Server;
+    /// # use cached::Server;
+    /// # use cached::Error;
     /// use cached::StatusCode;
     /// use cached::ClientConnection;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     tokio::spawn(async {
-    ///         Server::new()
-    ///             .bind("127.0.0.1:6543")
-    ///             .await
-    ///             .unwrap()
-    ///             .run()
-    ///             .await;
-    ///     });
-    ///     let conn = ClientConnection::new("127.0.0.1:6543").await;
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// # let addr = format!("127.0.0.1:{port}");
+    /// let conn = ClientConnection::new(addr).await;
     ///
-    ///     let client_1 = Client::with_connection(&conn);
-    ///     let response = client_1.set("foo", "bar", None).await.unwrap();
-    ///     assert_eq!(response, StatusCode::Ok);
+    /// let client_1 = Client::with_connection(&conn);
+    /// let response = client_1.set("foo", "bar", None).await.unwrap();
+    /// assert_eq!(response, StatusCode::Ok);
     ///
-    ///     let client_2 = Client::with_connection(&conn);
-    ///     let response = client_2.get("foo").await.unwrap();
-    ///     assert_eq!(response.status(), StatusCode::Ok);
-    /// }
+    /// let client_2 = Client::with_connection(&conn);
+    /// let response = client_2.get("foo").await.unwrap();
+    /// assert_eq!(response.status(), StatusCode::Ok);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn with_connection(conn: &ClientConnection) -> Self {
         Self { conn: conn.get() }
@@ -131,32 +127,30 @@ impl Client {
     ///
     /// ```
     /// use cached::Client;
-    /// use cached::Server;
+    /// # use cached::Server;
+    /// # use cached::Error;
     /// use cached::StatusCode;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     tokio::spawn(async {
-    ///         Server::new()
-    ///             .bind("127.0.0.1:6543")
-    ///             .await
-    ///             .unwrap()
-    ///             .run()
-    ///             .await;
-    ///     });
-    ///     let client = Client::new("127.0.0.1:6543").await;
-    ///     client.set("foo", "bar", None).await.unwrap();
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// # let addr = format!("127.0.0.1:{port}");
+    /// let client = Client::new(addr).await;
+    /// client.set("foo", "bar", None).await.unwrap();
     ///
-    ///     let response = client.get("foo").await.unwrap();
-    ///     assert_eq!(response.status(), StatusCode::Ok);
-    ///     assert_eq!(response.value().unwrap(), "bar");
-    ///     assert!(response.ttl_since_unix_epoch_in_millis().is_none());
+    /// let response = client.get("foo").await.unwrap();
+    /// assert_eq!(response.status(), StatusCode::Ok);
+    /// assert_eq!(response.value().unwrap(), "bar");
+    /// assert!(response.ttl_since_unix_epoch_in_millis().is_none());
     ///
-    ///     let response = client.get("something else").await.unwrap();
-    ///     assert_eq!(response.status(), StatusCode::KeyNotFound);
-    ///     assert!(response.value().is_none());
-    ///     assert!(response.ttl_since_unix_epoch_in_millis().is_none());
-    /// }
+    /// let response = client.get("something else").await.unwrap();
+    /// assert_eq!(response.status(), StatusCode::KeyNotFound);
+    /// assert!(response.value().is_none());
+    /// assert!(response.ttl_since_unix_epoch_in_millis().is_none());
+    /// # Ok(())
+    /// # }
     /// ```
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn get<S>(&self, key: S) -> Result<ResponseGet>
@@ -190,23 +184,21 @@ impl Client {
     ///
     /// ```
     /// use cached::Client;
-    /// use cached::Server;
+    /// # use cached::Server;
+    /// # use cached::Error;
     /// use cached::StatusCode;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     tokio::spawn(async {
-    ///         Server::new()
-    ///             .bind("127.0.0.1:6543")
-    ///             .await
-    ///             .unwrap()
-    ///             .run()
-    ///             .await;
-    ///     });
-    ///     let client = Client::new("127.0.0.1:6543").await;
-    ///     let response = client.set("foo", "bar", None).await;
-    ///     assert_eq!(response.unwrap(), StatusCode::Ok);
-    /// }
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// # let addr = format!("127.0.0.1:{port}");
+    /// let client = Client::new(addr).await;
+    /// let response = client.set("foo", "bar", None).await;
+    /// assert_eq!(response.unwrap(), StatusCode::Ok);
+    /// # Ok(())
+    /// # }
     /// ```
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn set<S>(
@@ -236,31 +228,29 @@ impl Client {
     ///
     /// ```
     /// use cached::Client;
-    /// use cached::Server;
+    /// # use cached::Server;
+    /// # use cached::Error;
     /// use cached::StatusCode;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     tokio::spawn(async {
-    ///         Server::new()
-    ///             .bind("127.0.0.1:6543")
-    ///             .await
-    ///             .unwrap()
-    ///             .run()
-    ///             .await;
-    ///     });
-    ///     let client = Client::new("127.0.0.1:6543").await;
-    ///     client.set("foo", "bar", None).await.unwrap();
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// # let addr = format!("127.0.0.1:{port}");
+    /// let client = Client::new(addr).await;
+    /// client.set("foo", "bar", None).await.unwrap();
     ///
-    ///     let response = client.get("foo").await.unwrap();
-    ///     assert_eq!(response.status(), StatusCode::Ok);
+    /// let response = client.get("foo").await.unwrap();
+    /// assert_eq!(response.status(), StatusCode::Ok);
     ///
-    ///     let response = client.delete("foo").await.unwrap();
-    ///     assert_eq!(response, StatusCode::Ok);
+    /// let response = client.delete("foo").await.unwrap();
+    /// assert_eq!(response, StatusCode::Ok);
     ///
-    ///     let response = client.get("foo").await.unwrap();
-    ///     assert_eq!(response.status(), StatusCode::KeyNotFound);
-    /// }
+    /// let response = client.get("foo").await.unwrap();
+    /// assert_eq!(response.status(), StatusCode::KeyNotFound);
+    /// # Ok(())
+    /// # }
     /// ```
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn delete<S>(&self, key: S) -> Result<StatusCode>
@@ -280,31 +270,29 @@ impl Client {
     ///
     /// ```
     /// use cached::Client;
-    /// use cached::Server;
+    /// # use cached::Server;
+    /// # use cached::Error;
     /// use cached::StatusCode;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     tokio::spawn(async {
-    ///         Server::new()
-    ///             .bind("127.0.0.1:6543")
-    ///             .await
-    ///             .unwrap()
-    ///             .run()
-    ///             .await;
-    ///     });
-    ///     let client = Client::new("127.0.0.1:6543").await;
-    ///     client.set("foo", "bar", None).await.unwrap();
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// # let server = Server::new().bind("127.0.0.1:6543").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// # let addr = format!("127.0.0.1:{port}");
+    /// let client = Client::new(addr).await;
+    /// client.set("foo", "bar", None).await?;
     ///
-    ///     let response = client.get("foo").await.unwrap();
-    ///     assert_eq!(response.status(), StatusCode::Ok);
+    /// let response = client.get("foo").await?;
+    /// assert_eq!(response.status(), StatusCode::Ok);
     ///
-    ///     let response = client.flush().await.unwrap();
-    ///     assert_eq!(response, StatusCode::Ok);
+    /// let response = client.flush().await?;
+    /// assert_eq!(response, StatusCode::Ok);
     ///
-    ///     let response = client.get("foo").await.unwrap();
-    ///     assert_eq!(response.status(), StatusCode::KeyNotFound);
-    /// }
+    /// let response = client.get("foo").await?;
+    /// assert_eq!(response.status(), StatusCode::KeyNotFound);
+    /// # Ok(())
+    /// # }
     /// ```
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub async fn flush(&self) -> Result<StatusCode> {
