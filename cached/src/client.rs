@@ -72,8 +72,10 @@ impl Client {
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # tokio::spawn(async { Server::new().bind("127.0.0.1:6543").await.unwrap().run().await;});
-    /// let client = Client::new("127.0.0.1:6543").await;
+    /// # let server = Server::new().bind("127.0.0.1:0").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// let client = Client::new(format!("127.0.0.1:{port}")).await;
     /// # Ok(())
     /// # }
     /// ```
@@ -98,8 +100,10 @@ impl Client {
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # tokio::spawn(async { Server::new().bind("127.0.0.1:6543").await.unwrap().run().await;});
-    /// let conn = ClientConnection::new("127.0.0.1:6543").await;
+    /// # let server = Server::new().bind("127.0.0.1:0").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// let conn = ClientConnection::new(format!("127.0.0.1:{port}")).await;
     ///
     /// let client_1 = Client::with_connection(&conn);
     /// let response = client_1.set("foo", "bar", None).await.unwrap();
@@ -127,8 +131,10 @@ impl Client {
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # tokio::spawn(async { Server::new().bind("127.0.0.1:6543").await.unwrap().run().await;});
-    /// let client = Client::new("127.0.0.1:6543").await;
+    /// # let server = Server::new().bind("127.0.0.1:0").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// let client = Client::new(format!("127.0.0.1:{port}")).await;
     /// client.set("foo", "bar", None).await.unwrap();
     ///
     /// let response = client.get("foo").await.unwrap();
@@ -181,8 +187,10 @@ impl Client {
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # tokio::spawn(async { Server::new().bind("127.0.0.1:6543").await.unwrap().run().await;});
-    /// let client = Client::new("127.0.0.1:6543").await;
+    /// # let server = Server::new().bind("127.0.0.1:0").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// let client = Client::new(format!("127.0.0.1:{port}")).await;
     /// let response = client.set("foo", "bar", None).await;
     /// assert_eq!(response.unwrap(), StatusCode::Ok);
     /// # Ok(())
@@ -222,8 +230,10 @@ impl Client {
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # tokio::spawn(async { Server::new().bind("127.0.0.1:6543").await.unwrap().run().await;});
-    /// let client = Client::new("127.0.0.1:6543").await;
+    /// # let server = Server::new().bind("127.0.0.1:0").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// let client = Client::new(format!("127.0.0.1:{port}")).await;
     /// client.set("foo", "bar", None).await.unwrap();
     ///
     /// let response = client.get("foo").await.unwrap();
@@ -261,8 +271,10 @@ impl Client {
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # tokio::spawn(async { Server::new().bind("127.0.0.1:6543").await.unwrap().run().await;});
-    /// let client = Client::new("127.0.0.1:6543").await;
+    /// # let server = Server::new().bind("127.0.0.1:0").await.unwrap();
+    /// # let port = server.port();
+    /// # tokio::spawn(async { server.run().await;});
+    /// let client = Client::new(format!("127.0.0.1:{port}")).await;
     /// client.set("foo", "bar", None).await?;
     ///
     /// let response = client.get("foo").await?;
