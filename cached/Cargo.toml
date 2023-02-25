@@ -11,7 +11,7 @@ path = "src/lib.rs"
 tracing = ["dep:tracing"]
 
 [dependencies]
-tokio = { version = "1.17.0", features=["sync", "rt", "signal", "net", "time", "io-util", "macros"] }
+tokio = { version = "1.25.0", features=["sync", "rt", "signal", "net", "time", "io-util", "macros"] }
 async-trait = "0.1.64"
 bytes = "1.1.0"
 nom = "7.1"
