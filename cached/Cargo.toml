@@ -11,17 +11,17 @@ path = "src/lib.rs"
 tracing = ["dep:tracing"]
 
 [dependencies]
-tokio = { version = "1.17.0", features=["sync", "rt", "signal", "net", "time", "io-util", "macros"] }
-async-trait = "0.1.58"
+tokio = { workspace = true, features=["sync", "rt", "signal", "net", "time", "io-util", "macros"] }
+async-trait = "0.1.64"
 bytes = "1.1.0"
-nom = "7.1"
+nom = { workspace = true }
 thiserror = "1.0"
-tracing = { version = "0.1", optional = true }
+tracing = { workspace = true, optional = true }
 
 
 [dev-dependencies]
-rstest = "0.12.0"
-tokio = { version = "1.17.0", features=["sync", "rt", "signal", "net", "time", "io-util", "macros", "rt-multi-thread"] }
+rstest = "0.16.0"
+tokio = { workspace = true, features=["sync", "rt", "signal", "net", "time", "io-util", "macros", "rt-multi-thread"] }
 criterion = {version = "0.4", features=["async_tokio"] }
 futures = "0.3"
 dhat = "0.3"
