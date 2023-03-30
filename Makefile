@@ -9,14 +9,14 @@ c-clippy:  ## Run the clippy check
 	cargo clippy --all-targets --all-features -- -D warnings
 
 c-fmt: update-nightly-fmt ## Run the fmt check
-	cargo +nightly-2023-02-06 fmt --all -- --check
+	cargo +nightly-2023-03-27 fmt --all -- --check
 
 format: update-nightly-fmt ## Format the code
-	cargo +nightly-2023-02-06 fmt --all
+	cargo +nightly-2023-03-27 fmt --all
 
 update-nightly-fmt: ## Installs/updates the nightly rustfmt installation
-	rustup toolchain install --profile minimal nightly-2023-02-06 --no-self-update
-	rustup component add rustfmt --toolchain nightly-2023-02-06
+	rustup toolchain install --profile minimal nightly-2023-03-27 --no-self-update
+	rustup component add rustfmt --toolchain nightly-2023-03-27
 
 all: format check ## Formats and checks the code
 
