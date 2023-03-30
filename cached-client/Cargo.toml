@@ -8,6 +8,5 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.17.0", features=["rt", "rt-multi-thread"] }
 cached = {path = "../cached"}
-futures = "0.3"
 nom = "7.1"
 clap = { version = "4.0", features=["derive"] }

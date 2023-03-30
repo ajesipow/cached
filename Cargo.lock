@@ -106,7 +106,6 @@ version = "0.1.0"
 dependencies = [
  "cached",
  "clap 4.0.23",
- "futures",
  "nom",
  "tokio",
 ]

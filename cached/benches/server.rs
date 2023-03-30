@@ -60,9 +60,7 @@ fn get_same_key_in_parallel_single_client(c: &mut Criterion) {
     c.bench_function("get bursts single client", |b| {
         b.to_async(&rt).iter_custom(|iters| async move {
             let client = Client::new("127.0.0.1:6599").await;
-            let client_futures = (0..iters)
-                .into_iter()
-                .map(|_| client.get("hello".to_string()));
+            let client_futures = (0..iters).map(|_| client.get("hello".to_string()));
             let start = Instant::now();
             let responses = join_all(client_futures).await;
             let elapsed = start.elapsed();
@@ -101,11 +99,10 @@ fn get_same_key_in_parallel_multiple_clients(c: &mut Criterion) {
 
     c.bench_function("get bursts 100 clients", |b| {
         b.to_async(&rt).iter_custom(|iters| async move {
-            let client_futures = (0..100).into_iter().map(|_| Client::new("127.0.0.1:6599"));
+            let client_futures = (0..100).map(|_| Client::new("127.0.0.1:6599"));
             let clients = join_all(client_futures).await;
-            let client_futures = (0..iters)
-                .into_iter()
-                .flat_map(|_| clients.iter().map(|c| c.get("hello".to_string())));
+            let client_futures =
+                (0..iters).flat_map(|_| clients.iter().map(|c| c.get("hello".to_string())));
             let start = Instant::now();
             let responses = join_all(client_futures).await;
             let elapsed = start.elapsed();
