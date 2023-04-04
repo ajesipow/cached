@@ -37,11 +37,6 @@ impl Connection {
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub(crate) async fn read_request(&mut self) -> Result<Option<Request>> {
         loop {
-            self.stream
-                .get_ref()
-                .readable()
-                .await
-                .map_err(|_| Error::new_connection(ConnectionError::ReadResponse))?;
             if let Some(request) = read_request(&mut self.buffer)? {
                 return Ok(Some(request));
             }
@@ -63,11 +58,6 @@ impl Connection {
     #[cfg_attr(feature = "tracing", instrument(skip(self)))]
     pub(crate) async fn read_response(&mut self) -> Result<Option<Response>> {
         loop {
-            self.stream
-                .get_ref()
-                .readable()
-                .await
-                .map_err(|_| Error::new_connection(ConnectionError::ReadResponse))?;
             if let Some(response) = read_response(&mut self.buffer)? {
                 return Ok(Some(response));
             }
