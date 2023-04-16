@@ -13,7 +13,7 @@ jobs:
     - uses: taiki-e/install-action@just
       
     - name: Run check
-      run: make check
+      run: just check
       
     - name: Run tests
-      run: make test
+      run: just test
