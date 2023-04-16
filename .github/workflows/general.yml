@@ -1,4 +1,4 @@
-name: Makefile CI
+name: General checks and tests
 
 on:
   push:
@@ -7,14 +7,14 @@ on:
 
 jobs:
   check_test:
-
     runs-on: ubuntu-latest
 
     steps:
+    - uses: taiki-e/install-action@just
     - uses: actions/checkout@v3
-      
+
     - name: Run check
-      run: make check
+      run: just check
       
     - name: Run tests
-      run: make test
+      run: just test
