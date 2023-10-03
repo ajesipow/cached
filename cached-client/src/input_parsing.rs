@@ -6,14 +6,14 @@ use nom::error::{context, VerboseError, VerboseErrorKind};
 use nom::sequence::{separated_pair, tuple};
 use nom::IResult;
 
-pub(crate) enum Request {
-    Get(String),
+pub(crate) enum Request<'a> {
+    Get(&'a str),
     Set {
-        key: String,
-        value: String,
+        key: &'a str,
+        value: &'a str,
         ttl_since_unix_epoch_in_millis: Option<u128>,
     },
-    Delete(String),
+    Delete(&'a str),
     Flush,
 }
 
@@ -39,7 +39,7 @@ fn parse_get(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> 
                 cut(parse_str_until_newline_without_whitespaces),
             ),
         ),
-        |(_, key): (&str, &str)| Some(Request::Get(key.to_string())),
+        |(_, key): (&str, &str)| Some(Request::Get(key)),
     )(input)
 }
 
@@ -50,7 +50,7 @@ fn parse_delete(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str
             context("Expected key", cut(space1)),
             parse_str_until_newline_without_whitespaces,
         ),
-        |(_, key): (&str, &str)| Some(Request::Delete(key.to_string())),
+        |(_, key): (&str, &str)| Some(Request::Delete(key)),
     )(input)
 }
 
@@ -68,8 +68,8 @@ fn parse_set(input: &str) -> IResult<&str, Option<Request>, VerboseError<&str>> 
         )),
         |(_, _, key, _, value): (&str, &str, &str, &str, &str)| {
             Some(Request::Set {
-                key: key.to_string(),
-                value: value.to_string(),
+                key,
+                value,
                 ttl_since_unix_epoch_in_millis: None,
             })
         },
