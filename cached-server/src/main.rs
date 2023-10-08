@@ -5,14 +5,14 @@ use tracing_chrome::ChromeLayerBuilder;
 #[cfg(feature = "tracing")]
 use tracing_subscriber::prelude::*;
 
-const BANNER: &str = r#"
+const BANNER: &str = r"
  ______     ______     ______     __  __     ______     _____
 /\  ___\   /\  __ \   /\  ___\   /\ \_\ \   /\  ___\   /\  __-.
 \ \ \____  \ \  __ \  \ \ \____  \ \  __ \  \ \  __\   \ \ \/\ \
  \ \_____\  \ \_\ \_\  \ \_____\  \ \_\ \_\  \ \_____\  \ \____-
   \/_____/   \/_/\/_/   \/_____/   \/_/\/_/   \/_____/   \/____/
 
-"#;
+";
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
