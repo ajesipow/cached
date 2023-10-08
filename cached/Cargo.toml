@@ -25,6 +25,7 @@ tokio = { version = "1.17.0", features=["sync", "rt", "signal", "net", "time", "
 criterion = {version = "0.4", features=["async_tokio"] }
 futures = "0.3"
 dhat = "0.3"
+rand = "0.8"
 
 [[bench]]
 name = "server"
