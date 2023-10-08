@@ -2,7 +2,8 @@ use cached::{Client, Server};
 use criterion::{criterion_group, criterion_main, Criterion};
 use futures::future::join_all;
 use rand::distributions::{Alphanumeric, DistString, Distribution, Uniform};
-use rand::{thread_rng, Rng};
+use rand::{Rng, SeedableRng};
+use rand::rngs::StdRng;
 use tokio::time::Instant;
 
 fn get_key(c: &mut Criterion) {
@@ -118,6 +119,7 @@ fn get_same_key_in_parallel_multiple_clients(c: &mut Criterion) {
     });
 }
 
+#[derive(Debug)]
 enum RandomAccessClientSetup<'a> {
     Set { key: &'a str, value: &'a str },
     Get(&'a str),
@@ -130,7 +132,7 @@ async fn random_client_action<'a>(
     data: &'a [RandomAccessClientSetup<'a>],
     data_distribution: &Uniform<usize>,
 ) {
-    let mut rng = thread_rng();
+    let mut rng = StdRng::seed_from_u64(42);
     match data[data_distribution.sample(&mut rng)] {
         RandomAccessClientSetup::Set { key, value } => {
             let _ = client.set(key, value, None).await;
@@ -166,7 +168,7 @@ fn set_and_get_random_access(c: &mut Criterion) {
         Client::new("127.0.0.1:6599").await
     });
 
-    let mut rng = thread_rng();
+    let mut rng = StdRng::seed_from_u64(42);
     let keys: Vec<String> = (0..10_000)
         .map(|_| {
             let key_len = rng.gen_range(5..=32);
